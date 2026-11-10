@@ -25,9 +25,10 @@ from __future__ import annotations
 
 import difflib
 
-import click
 from typer.core import TyperGroup
 from typer.main import get_command_name
+
+from examlops.cli._click_compat import Command, Context, UsageError
 
 # Panel spec: an ordered list of (panel_title, [command_names]). Ordered => display order.
 PanelSpec = list[tuple[str, list[str]]]
@@ -57,11 +58,11 @@ class SuggestGroup(TyperGroup):
     """
 
     def resolve_command(
-        self, ctx: click.Context, args: list[str]
-    ) -> tuple[str | None, click.Command | None, list[str]]:
+        self, ctx: Context, args: list[str]
+    ) -> tuple[str | None, Command | None, list[str]]:
         try:
             return super().resolve_command(ctx, args)
-        except click.UsageError as exc:
+        except UsageError as exc:
             message = exc.message or ""
             if "did you mean" not in message.lower():
                 typed = args[0] if args else ""
@@ -89,7 +90,7 @@ def make_ordered_group(
     unmapped = len(flat_order)
 
     class _OrderedGroup(base):  # type: ignore[valid-type, misc]
-        def list_commands(self, ctx: click.Context) -> list[str]:
+        def list_commands(self, ctx: Context) -> list[str]:
             names = super().list_commands(ctx)
             original = {name: i for i, name in enumerate(names)}
             return sorted(names, key=lambda n: (flat_order.get(n, unmapped), original[n]))

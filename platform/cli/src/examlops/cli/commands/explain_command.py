@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import re
 
-import click
 import typer
 
 from examlops.cli import _output
+from examlops.cli._click_compat import Command
 
 _EXAMPLES = (
     "Examples:\n\n"
@@ -28,7 +28,7 @@ _EXAMPLES = (
 _MARKUP = re.compile(r"\[/?[a-z ]+\]")
 
 
-def _root_group() -> click.Command:
+def _root_group() -> Command:
     """Return the Click group for the whole `exa` app (lazy to avoid import cycles)."""
     import typer.main
 
@@ -53,8 +53,8 @@ def _normalize(path: list[str]) -> list[str]:
     return parts
 
 
-def _resolve(path: list[str]) -> click.Command | None:
-    node: click.Command | None = _root_group()
+def _resolve(path: list[str]) -> Command | None:
+    node: Command | None = _root_group()
     for part in _normalize(path):
         commands = getattr(node, "commands", None)
         if not commands or part not in commands:

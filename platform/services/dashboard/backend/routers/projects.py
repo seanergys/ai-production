@@ -634,7 +634,7 @@ async def delete_project_view(name: str, principal: dict = Depends(_admin)) -> d
     # Shared code path (Phase 42): the full cascade — membership, authz grants, budget/storage/
     # pipeline rows — lives in examlops.data.projects.delete_project, the same helper the CLI
     # uses, so the two surfaces can never disagree on a security-relevant cascade again.
-    if not _pdb.delete_project(name):
+    if not _examlops_projects().delete_project(name):
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Project '{name}' not found")
     conn = _connect()
     _audit(conn, principal.get("sub", "?"), "project_deleted", name, {"via": "dashboard"})

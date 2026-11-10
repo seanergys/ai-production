@@ -322,12 +322,22 @@ services:
     profiles: [monitoring]
     container_name: examlops-grafana
     mem_limit: ${GRAFANA_MEM_LIMIT:-512m}
+    # Fail closed (item 0.8): no admin/admin default and no anonymous access unless the
+    # operator explicitly opts in — this port is published on all interfaces, so on an
+    # internet-reachable node the old defaults were an unauthenticated metrics browser
+    # plus a well-known admin login. Set GRAFANA_ADMIN_PASSWORD in .env.
+    # The check lives in the container, not in a `:?` interpolation: compose interpolates
+    # every service before filtering by profile, so a required variable here aborted every
+    # compose command — `ps`, `logs`, `up` of the core stack — on a node without it.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >-
+        [ -n "$$GF_SECURITY_ADMIN_PASSWORD" ] ||
+        { echo "GRAFANA_ADMIN_PASSWORD must be set in .env (refusing the admin/admin default)" >&2; exit 1; };
+        exec /run.sh
     environment:
-      # Fail closed (item 0.8): no admin/admin default and no anonymous access unless the
-      # operator explicitly opts in — this port is published on all interfaces, so on an
-      # internet-reachable node the old defaults were an unauthenticated metrics browser
-      # plus a well-known admin login. Set GRAFANA_ADMIN_PASSWORD in .env.
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD must be set in .env (refusing the admin/admin default)}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-}
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_SECURITY_ALLOW_EMBEDDING: "true"
       GF_AUTH_ANONYMOUS_ENABLED: ${GRAFANA_ANONYMOUS_ENABLED:-false}

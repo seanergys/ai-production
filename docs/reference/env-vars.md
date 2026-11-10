@@ -324,6 +324,7 @@ Selection is per-pipeline-run via `--backend` CLI flag or `backend_name` Prefect
 | `RAY_RELOAD_POLL_SECONDS` | `60` | Background MLflow alias-poll interval in seconds; `0` disables polling |
 | `RAY_SERVE_RELOAD_URL` | unset | Ray Serve URL for the Prefect promotion webhook (`POST /reload/{model_id}`); unset disables the webhook |
 | `RAY_METRICS_EXPORT_PORT` | `8080` | Prometheus metrics export port used by Ray |
+| `TRAFFIC_RULES_TTL_SECONDS` | `30` | How long the inference pipeline caches a model's traffic split (`exa serve traffic`) before re-reading it from the platform DB. A change made from another process takes effect within this many seconds. |
 
 ---
 
@@ -368,10 +369,12 @@ Selection is per-pipeline-run via `--backend` CLI flag or `backend_name` Prefect
 | `DASHBOARD_SECRET_KEY` | **required** | Fernet key (base64-encoded, 44 characters) for secrets-at-rest encryption |
 | `DASHBOARD_JWT_TTL_HOURS` | `12` | JWT token expiry in hours |
 | `DASHBOARD_PORT` | `8099` | Dashboard HTTP port (host-exposed as `18099`) |
+| `DASHBOARD_TRUSTED_PROXY` | unset | Truthy (`1`/`true`/`yes`/`on`) when a reverse proxy sits in front of the dashboard: the rate limiter then keys on the client address from `X-Forwarded-For`. Leave unset without a proxy — the header is client-forgeable. |
 | `GITLAB_URL` | `https://gitlab.com` | GitLab base URL for ModelZoo repository integration |
 | `GITLAB_TOKEN` | unset | GitLab PAT with `read_repository` scope; used by the Datasets and Models pages to list files from the modelzoo repo. Also used as a last-resort fallback for the "Run CI Pipeline" button when no DB or env trigger token is configured. |
 | `GITLAB_PROJECT_ID` | unset | ModelZoo project ID; used by the Datasets/Models pages. Also used by the "Run CI Pipeline" fallback path when `AI_PROD_GITLAB_PROJECT_ID` is absent. |
 | `GITLAB_BRANCH` | `main` | Branch consulted by the ModelZoo stats router |
+| `DASHBOARD_GITLAB_INSECURE_TLS` | unset (TLS verified) | Truthy (`1`/`true`/`yes`/`on`) turns off TLS certificate checks for the dashboard's GitLab calls. Only for a self-signed on-prem GitLab whose CA cannot be installed — a `PRIVATE-TOKEN` travels on these requests. |
 | `DATABASE_URL` | `postgresql+asyncpg://mlops:mlops@postgres/mlflow` | Postgres connection string for dashboard metadata |
 | `AI_PROD_PIPELINE_TRIGGER_TOKEN` | unset | GitLab pipeline trigger token for the ai-production project. When set, "Run CI Pipeline" on the Datasets page uses this token to fire the ai-production pipeline (which runs `test:modelzoo`). Takes priority over the `GITLAB_TOKEN` PAT fallback. |
 | `AI_PROD_GITLAB_PROJECT_ID` | unset | ai-production project ID (e.g. `88`). Used together with `AI_PROD_PIPELINE_TRIGGER_TOKEN` for the "Run CI Pipeline" fallback. |
@@ -509,6 +512,13 @@ EXAMLOPS_GITLAB_HOST_ENTRY=gitlab.internal.example.com:10.0.0.5
 | `RAY_REGISTRY_ENV` | unset | Env overlay name (e.g., `prod`) loaded alongside `RAY_REGISTRY_PATH`; maps to `pipelines/envs/<ENV>.yaml` |
 
 ---
+
+## Grafana (monitoring profile)
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `GRAFANA_ADMIN_PASSWORD` | unset | Grafana admin password. **Required to start Grafana**: its entrypoint exits with an error while this is empty, so the well-known `admin`/`admin` login is never live. Not needed by any other service, so the core stack starts without it. |
+| `GRAFANA_ANONYMOUS_ENABLED` | `false` | `true` lets anyone reach the dashboards as a Viewer without logging in. |
 
 ## Monitoring — Scraped Services (Phase 13)
 

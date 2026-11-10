@@ -66,7 +66,8 @@ def test_health_reports_registry_and_auth(client):
 
 
 def test_models_endpoint_lists_known_models(client):
-    r = client.get("/models")
+    # /models needs a credential with the `read` scope (it is behind _require_read_context).
+    r = client.get("/models", headers={"Authorization": "Bearer test-token"})
     assert r.status_code == 200
     body = r.json()
     names = {entry["model_name"] for entry in body}

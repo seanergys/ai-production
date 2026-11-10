@@ -16,6 +16,11 @@ ROOT_DIR        := $(CURDIR)
 COMPOSE_DIR     := platform/infra/docker-compose
 RAY_SERVING_DIR := serving/ray_serving
 MODELZOO_DIR    := modelzoo
+# Upstream model library (not part of this repo). MODELZOO_REF is the upstream commit the
+# platform is tested against — bump it deliberately, after `make test-fast` passes on the new
+# one (tests/unit/test_upstream_modelzoo_compat.py is the check that matters).
+MODELZOO_REPO   ?= https://gitlab.seanergys.fz-juelich.de/software/modelzoo.git
+MODELZOO_REF    ?= 09b4036506f687495a0f1fd70748f14c8a2a1cff
 # deploy-node layout: $(DEPLOY_PATH)-seanerbus/seanerbus
 # laptop layout:      ../../seanerbus  (two levels up from repo root)
 SEANERBUS_DIR   ?= $(or $(wildcard $(ROOT_DIR)/../examlops-seanerbus/seanerbus),$(ROOT_DIR)/../../seanerbus)
@@ -74,6 +79,7 @@ endif
 .PHONY: help \
         full-up stop-all rebuild rebuild-all lxp-rebuild \
         stack-up stack-down stack-wipe stack-restart stack-logs stack-ps stack-shell \
+        modelzoo \
         touch-env-dashboard \
         monitoring-up monitoring-down \
         seanerbus-up seanerbus-down seanerbus-bridge-logs seanerbus-reqgen-logs \
@@ -181,7 +187,25 @@ full-up: _guard-uv ## Start everything: stack + monitoring + SeanerBUS (reqgen +
 	  "SeanerBUS Bridge"   "http://localhost:18003  (/health · /stats · /metrics)"
 	@printf "\n$(DIM)Logs: make seanerbus-bridge-logs · make seanerbus-reqgen-logs$(RESET)\n\n"
 
-stack-up: _guard-uv ## Start core stack: Postgres · MLflow · Prefect · Ray · Control Plane · Agent · Dashboard
+modelzoo: ## Fetch the upstream model library into ./modelzoo at the tested commit (MODELZOO_REF)
+	@if [ ! -d "$(MODELZOO_DIR)/seanergys_modelzoo" ]; then \
+	  printf "$(BOLD)Fetching modelzoo @ $(MODELZOO_REF)...$(RESET)\n"; \
+	  git clone --quiet "$(MODELZOO_REPO)" "$(MODELZOO_DIR)"; \
+	  git -C "$(MODELZOO_DIR)" checkout --quiet "$(MODELZOO_REF)"; \
+	  printf "$(GREEN)modelzoo ready at $(MODELZOO_DIR)/$(RESET)\n"; \
+	elif [ ! -d "$(MODELZOO_DIR)/.git" ]; then \
+	  printf "$(DIM)modelzoo present at $(MODELZOO_DIR)/ (not a git checkout — left as is).$(RESET)\n"; \
+	else \
+	  have=$$(git -C "$(MODELZOO_DIR)" rev-parse HEAD); \
+	  if [ "$$have" = "$(MODELZOO_REF)" ]; then \
+	    printf "$(DIM)modelzoo present at the tested commit.$(RESET)\n"; \
+	  else \
+	    printf "$(YELLOW)modelzoo is at $$have, but the platform is tested against $(MODELZOO_REF).$(RESET)\n"; \
+	    printf "$(YELLOW)Left as is. To switch: git -C $(MODELZOO_DIR) fetch && git -C $(MODELZOO_DIR) checkout $(MODELZOO_REF)$(RESET)\n"; \
+	  fi; \
+	fi
+
+stack-up: _guard-uv modelzoo ## Start core stack: Postgres · MLflow · Prefect · Ray · Control Plane · Agent · Dashboard
 	@printf "$(BOLD)Starting ExaMLOps core stack...$(RESET)\n"
 	@cd $(COMPOSE_DIR) && $(DC) up -d --build
 	@printf "\n$(GREEN)Core stack is up:$(RESET)\n"

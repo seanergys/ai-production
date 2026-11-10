@@ -13,7 +13,7 @@ from realtime import bus
 from settings import settings
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from routers.config import get_decrypted_secret
+from routers.config import get_control_plane_token
 
 log = logging.getLogger("dashboard.approvals")
 
@@ -26,8 +26,17 @@ def _as_dict(value: object) -> dict:
 
 
 async def _get_control_plane_token(db: AsyncSession) -> str | None:
-    """Return the plaintext control_plane_token from the encrypted config store, or None."""
-    return await get_decrypted_secret(db, "control_plane_token")
+    """Return the control-plane credential (Config-page value, else the deployment's), or None."""
+    return await get_control_plane_token(db)
+
+
+def _relayed_status(upstream: int) -> int:
+    """Status to answer the browser with when the control plane refuses a call.
+
+    The control plane's 401/403 is about the *dashboard's* credential, not the user's session.
+    Relaying it verbatim makes the frontend log the user out, so it becomes a gateway error.
+    """
+    return 502 if upstream in (401, 403) else upstream
 
 
 class RejectBody(BaseModel):
@@ -63,7 +72,10 @@ async def list_approvals(
         # Don't forward the raw upstream body to the client — surface a generic
         # message and log the detail server-side instead of leaking internals.
         log.warning("Control Plane /approvals returned %s: %s", resp.status_code, resp.text[:500])
-        raise HTTPException(status_code=resp.status_code, detail="Control Plane returned an error")
+        raise HTTPException(
+            status_code=_relayed_status(resp.status_code),
+            detail="Control Plane returned an error",
+        )
     return resp.json()
 
 
@@ -93,7 +105,10 @@ async def approve_model(
     if not resp.is_success:
         # Same masking as the GET above: log the upstream body, never forward it (D15).
         log.warning("Control Plane /approve returned %s: %s", resp.status_code, resp.text[:500])
-        raise HTTPException(status_code=resp.status_code, detail="Control Plane returned an error")
+        raise HTTPException(
+            status_code=_relayed_status(resp.status_code),
+            detail="Control Plane returned an error",
+        )
     result = resp.json()
     # Push a live event onto the realtime gateway (F8) so open dashboards update without polling.
     bus.publish("approval.approved", {"model": model_id, **_as_dict(result)})
@@ -126,7 +141,10 @@ async def reject_model(
 
     if not resp.is_success:
         log.warning("Control Plane /reject returned %s: %s", resp.status_code, resp.text[:500])
-        raise HTTPException(status_code=resp.status_code, detail="Control Plane returned an error")
+        raise HTTPException(
+            status_code=_relayed_status(resp.status_code),
+            detail="Control Plane returned an error",
+        )
     result = resp.json()
     bus.publish("approval.rejected", {"model": model_id, "reason": body.reason, **_as_dict(result)})
     return result

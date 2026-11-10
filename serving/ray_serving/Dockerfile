@@ -4,7 +4,13 @@ WORKDIR /app
 
 RUN pip install --no-cache-dir uv
 
-# Slim serving dependencies — no torch/CUDA needed for sklearn inference
+# Serving dependencies. Plain sklearn inference needs no torch, but models whose registered
+# estimator is a class from the upstream model library (MACK) can only be unpickled with that
+# library importable, and it imports torch and sentence-transformers at module level.
+# CPU-only torch is installed from the PyTorch index first so that the requirements below do
+# not pull the default CUDA build (several GB) in as a transitive dependency.
+RUN uv pip install --no-cache-dir --system torch --index-url https://download.pytorch.org/whl/cpu
+
 COPY serving/ray_serving/requirements.txt .
 RUN uv pip install --no-cache-dir -r requirements.txt --system
 

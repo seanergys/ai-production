@@ -11,7 +11,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from settings import settings
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from routers.config import get_decrypted_secret
+from routers.config import get_control_plane_token, get_decrypted_secret
 
 router = APIRouter(prefix="/proxy", tags=["proxy"])
 
@@ -50,7 +50,7 @@ async def inject_grafana_bearer(headers: dict[str, str], db: AsyncSession) -> di
 
 
 async def inject_control_plane_bearer(headers: dict[str, str], db: AsyncSession) -> dict[str, str]:
-    token = await get_decrypted_secret(db, "control_plane_token")
+    token = await get_control_plane_token(db)
     if token:
         headers["Authorization"] = f"Bearer {token}"
     return headers

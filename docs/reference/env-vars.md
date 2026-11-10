@@ -333,6 +333,7 @@ The scheduler backend and its transport are independent. `EXAMLOPS_SLURM_MODE` a
 | Variable | Default | Purpose |
 |---|---|---|
 | `EXAMLOPS_DATA_BUCKET` | `examlops-data` | S3/MinIO bucket consulted by `MinIOBackend` |
+| `DATAPLANE_URL` | `http://localhost:8010` | Base URL of the HPC dataplane REST API (or its simulator) polled by the `dataplane` dataset backend. |
 | `EXAMLOPS_DATA_S3_ENDPOINT` | unset | Dedicated endpoint for the **dataset** object store (e.g. the SEANERGYS Day-0 store on JSC S3), separate from the platform MinIO holding MLflow artifacts/models. Unset ⇒ the minio dataset backend falls back to `MLFLOW_S3_ENDPOINT_URL` (single shared instance, legacy behaviour). |
 | `EXAMLOPS_DATA_S3_ACCESS_KEY` / `EXAMLOPS_DATA_S3_SECRET_KEY` | unset | Credentials for the dedicated dataset store. Unset ⇒ fall back to `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`. |
 

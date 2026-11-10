@@ -5,9 +5,16 @@ End-to-end MLOps platform for HPC workload management in large European research
 ## Quick Start
 
 ```bash
-make help       # list all available targets
-make bootstrap  # one-shot: start dev stack + install all deps
+cp .env.example .env   # then fill in the DASHBOARD_* secrets (see the comments in the file)
+make help              # list all available targets
+make bootstrap         # one-shot: fetch modelzoo + start dev stack + install all deps
 ```
+
+The model library (`seanergys_modelzoo`) is a separate upstream project and is **not** part of
+this repository. `make bootstrap` / `make stack-up` fetch it into `./modelzoo` at the commit the
+platform is tested against (`MODELZOO_REF` in the Makefile); run `make modelzoo` to do only
+that. The platform uses it exactly as upstream publishes it — the platform-side glue lives in
+`usecases/seanergy/seanergy_framework/`.
 
 ## Running the Auto-Pipeline
 
@@ -168,7 +175,7 @@ ExaMLOps/
 │   ├── components/             # Per-service component docs
 │   ├── guides/                 # Quickstart, add-a-model, SeanerBUS, etc.
 │   └── reference/              # Commands, env vars, CLI, API reference
-├── modelzoo/                   # seanergys-modelzoo model library (poetry)
+├── modelzoo/                   # upstream seanergys-modelzoo checkout — fetched by `make modelzoo`, gitignored
 │   └── seanergys_modelzoo/
 │       ├── models/             # Concrete model implementations + framework adapters
 │       └── datasets/           # SeanergysDataset subclasses + pluggable backends

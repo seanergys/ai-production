@@ -8,3 +8,6 @@ scikit-learn>=1.3.0
 xgboost==3.2.0
 numpy
 boto3>=1.28.0
+# Imported at module level by the upstream model library (see the Dockerfile note on torch).
+sentence-transformers>=2.0.0
+pyarrow

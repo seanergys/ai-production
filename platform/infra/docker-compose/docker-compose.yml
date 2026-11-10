@@ -159,6 +159,14 @@ services:
       OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://tempo:4317}
       OTEL_SERVICE_NAME: ray-serving
+      # Some registered models are custom estimator classes defined in the upstream model
+      # library, so unpickling them needs it importable in every replica process.
+      PYTHONPATH: /app/modelzoo
+    volumes:
+      # Upstream modelzoo is mounted, not baked in: it is not part of this repo's published
+      # tree (`make modelzoo` fetches it), so a COPY would make the image unbuildable for
+      # anyone else. tests/unit/test_dockerfile_build_context.py holds that line.
+      - ${EXAMLOPS_HOST_REPO:-../../..}/modelzoo:/app/modelzoo:ro
     env_file:
       - path: .env
         required: true
@@ -497,6 +505,9 @@ services:
       DASHBOARD_SECRET_KEY:      ${DASHBOARD_SECRET_KEY:?must be set in .env}
       DASHBOARD_PORT: "8099"
       CONTROL_PLANE_URL: http://control-plane:8002
+      # Same credential the control plane is started with; a value saved on the dashboard's
+      # Config page overrides it.
+      CONTROL_PLANE_TOKEN: ${CONTROL_PLANE_TOKEN:-}
       AGENT_URL: http://agent:18004
       DASHBOARD_AGENT_API_KEY: ${DASHBOARD_AGENT_API_KEY:-}
       AGENT_API_KEY: ${AGENT_API_KEY:-}

@@ -53,7 +53,11 @@ def main() -> None:
     print(f"[slurm_train] model={args.model}  dataset={args.dataset}  dummy={args.dummy}")
 
     # Import pipeline registry (triggers auto-discovery)
-    from pipelines.pipeline_generator import MODEL_REGISTRY, _resolve_dataset_cls  # noqa: PLC0415
+    from pipelines.pipeline_generator import (  # noqa: PLC0415
+        MODEL_REGISTRY,
+        _fit,
+        _resolve_dataset_cls,
+    )
 
     if args.model not in MODEL_REGISTRY:
         print(
@@ -70,7 +74,7 @@ def main() -> None:
     )
 
     print("[slurm_train] Starting training...")
-    model.train_step(train_loader)
+    _fit(model, train_loader)
     print("[slurm_train] Training complete.")
 
     import joblib  # noqa: PLC0415

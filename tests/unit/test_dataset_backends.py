@@ -14,7 +14,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MODELZOO = REPO_ROOT / "modelzoo"
-for p in (str(REPO_ROOT), str(MODELZOO)):
+for p in (str(REPO_ROOT), str(MODELZOO), str(REPO_ROOT / "usecases" / "seanergy")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
@@ -34,7 +34,7 @@ if str(_MZ) not in sys.path:
     sys.path.insert(0, str(_MZ))
 
 
-from seanergys_modelzoo.datasets._backends import (  # noqa: E402
+from seanergy_framework.backends import (  # noqa: E402
     DataplaneBackend,
     DatasetBackend,
     MinIOBackend,

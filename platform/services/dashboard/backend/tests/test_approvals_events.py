@@ -99,7 +99,9 @@ async def test_list_hides_upstream_auth_error_body(client, monkeypatch):
 
     response = await client.get("/api/approvals", headers={"Authorization": f"Bearer {token}"})
 
-    assert response.status_code == 401
+    # Not 401: that is the control plane refusing the *dashboard's* credential. The frontend
+    # treats any 401 as an expired session, so relaying it would log the user out.
+    assert response.status_code == 502
     assert response.json() == {"detail": "Control Plane returned an error"}
     assert "credential detail" not in response.text
 

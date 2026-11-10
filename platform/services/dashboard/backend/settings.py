@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     minio_url: str = "http://localhost:19000"
     minio_console_url: str = "http://localhost:19001"
     control_plane_url: str = "http://localhost:18002"
+    # Bearer credential the dashboard presents to the control plane. A value saved on the
+    # Config page takes precedence; this is the deployment-provided default.
+    control_plane_token: str = ""
     agent_url: str = "http://localhost:18004"
     dashboard_agent_api_key: str = ""
     agent_api_key: str = ""

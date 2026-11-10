@@ -8,9 +8,10 @@ This is *content*, kept separate from the platform (ADR 0094); the platform load
 
 | Path | What |
 |---|---|
-| `pack.toml` | Manifest: per-model YAML dir, config package, dataset registry, and the `seanergys_modelzoo` framework binding. |
+| `pack.toml` | Manifest: per-model YAML dir, config package, dataset registry, and the framework binding. |
 | `models/*.yaml` | Per-model declarative config for `JPCP`, `MACK`, `MCBound` (single source of truth). |
 | `model_configs/*.py` | Python transform shims (model-bound callables that can't be expressed in YAML). |
+| `seanergy_framework/` | Platform-side glue the pipeline engine needs around a model: step marker, storage backends and dataset sourcing, per-framework save/load, configurator and PyTorch/HuggingFace bases. Upstream `seanergys_modelzoo` carries none of this and is used as published. |
 | `datasets/schemas.json` | Field schemas for the pack's datasets (e.g. `FData`), used to build Croissant dataset cards. |
 
 The model *implementations* and dataset classes live upstream in `modelzoo/`

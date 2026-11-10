@@ -98,7 +98,15 @@ _Dataloader = _FRAMEWORK["dataloader"]
 _DataloaderParams = _FRAMEWORK["dataloader_params"]
 _get_backend = _FRAMEWORK["get_backend"]
 _adapter_for = _FRAMEWORK["framework_adapter"]
+# Optional: a pack whose dataset classes take no ``backend`` object (upstream modelzoo)
+# supplies a resolver that turns a backend name into plain constructor kwargs instead.
+_dataset_source = _FRAMEWORK.get("dataset_source")
 SeanergysModelTask = _FRAMEWORK["model_task"]
+
+
+def _fit(model: Any, loader: Any) -> Any:
+    """Train *model* through its framework adapter (``train``, or ``train_step`` if defined)."""
+    return _adapter_for(model).fit(model, loader)
 
 
 def _dataset_store_kwargs(backend_name: str) -> dict[str, str]:
@@ -233,8 +241,13 @@ def _build_model_tasks(
 
     tasks: dict[str, Any] = {}
 
-    if "train_step" in step_attrs:
-        retries = step_attrs["train_step"]._step_retries
+    # ``train`` / ``evaluate`` are part of the model base contract, so they are pipeline
+    # steps whether or not the model library marks them with @pipeline_step.
+    has_train = "train_step" in step_attrs or callable(getattr(model_cls, "train", None))
+    has_evaluate = "evaluate_step" in step_attrs or callable(getattr(model_cls, "evaluate", None))
+
+    if has_train:
+        retries = getattr(step_attrs.get("train_step"), "_step_retries", 1)
 
         def _make_train(cfg_cls: Any, rt: int) -> Any:
             @task(name=f"{model_cls.__name__}_train", retries=rt)
@@ -248,7 +261,7 @@ def _build_model_tasks(
                     ds_cls, split="train", is_dummy=is_dummy, backend_name=None
                 )
                 print(f"[pipeline] Training {model_name} on {dataset_cls_name}...")
-                history = model.train_step(loader)
+                history = _fit(model, loader)
                 print(f"[pipeline] Training done — keys: {list(history.keys())}")
                 return model, history
 
@@ -256,7 +269,7 @@ def _build_model_tasks(
 
         tasks["train_step"] = _make_train(config_cls, retries)
 
-    if "evaluate_step" in step_attrs:
+    if has_evaluate:
 
         def _make_evaluate(cfg_cls: Any) -> Any:
             @task(name=f"{model_cls.__name__}_evaluate", cache_policy=NO_CACHE)
@@ -391,15 +404,19 @@ def _build_train_components(
     transforms = shim.get_transforms(model, dataset_cls)
 
     # Build dataset kwargs
-    filters = [(f[0], f[1], _parse_filter_value(f[2])) for f in split_cfg.filters]
+    conjunction = [(f[0], f[1], _parse_filter_value(f[2])) for f in split_cfg.filters]
+    # pyarrow DNF: a list of AND-groups. Equivalent to the flat form for one group, and the
+    # only shape that stays valid when a dataset class appends a group of its own.
+    filters = [conjunction] if conjunction else []
     ds_kwargs: dict = {
         "is_dummy": is_dummy,
         "input_features": ds_entry.input_features,
         "output_features": ds_entry.output_features,
         "filters": filters,
     }
-    if ds_entry.cache_dir:
-        ds_kwargs["download_path"] = str(_REPO_ROOT / ds_entry.cache_dir)
+    cache_dir = _REPO_ROOT / ds_entry.cache_dir if ds_entry.cache_dir else None
+    if cache_dir and _dataset_source is None:
+        ds_kwargs["download_path"] = str(cache_dir)
     if ds_entry.columns:
         ds_kwargs["columns"] = ds_entry.columns
     if split_cfg.files:
@@ -415,7 +432,24 @@ def _build_train_components(
 
     # Backend: YAML default overridden by runtime arg
     effective_backend = backend_name or ds_entry.backend
-    if effective_backend and effective_backend != "zenodo":
+    if _dataset_source is not None:
+        ds_kwargs.update(
+            _dataset_source(
+                dataset_cls,
+                backend_name=effective_backend,
+                cache_dir=cache_dir,
+                is_dummy=is_dummy,
+                filters=filters,
+                files=split_cfg.files,
+                schema={
+                    k: ds_kwargs[k]
+                    for k in ("input_features", "output_features", "columns")
+                    if k in ds_kwargs
+                },
+                store_kwargs=_dataset_store_kwargs(effective_backend or ""),
+            )
+        )
+    elif effective_backend and effective_backend != "zenodo":
         ds_kwargs["backend"] = _get_backend(
             effective_backend, **_dataset_store_kwargs(effective_backend)
         )
@@ -746,7 +780,7 @@ def _update_hpc_job_safe(job_id: str, scheduler: str, status: dict) -> None:
 
 
 @task(
-    name="slurm_submit",
+    name="Training Submission",
     retries=2,
     retry_delay_seconds=[10, 30],
     timeout_seconds=_SUBMIT_TIMEOUT_S,
@@ -763,7 +797,7 @@ def slurm_submit_task(
     Submit training to HPC (or run inline for mock mode).
 
     EXAMLOPS_SLURM_MODE=mock  (default):
-        Runs model.train_step(loader) inline, saves estimator to a temp pkl,
+        Trains the model inline, saves estimator to a temp pkl,
         returns (job_id, artifact_path).
 
     EXAMLOPS_HPC_SCHEDULER=slurm|flux:
@@ -774,7 +808,7 @@ def slurm_submit_task(
 
     if scheduler == "mock":
         print(f"[slurm_submit] mock — training {model_name} on {dataset_cls_name} inline")
-        model.train_step(loader)
+        _fit(model, loader)
 
         tmp_dir = Path(tempfile.mkdtemp(prefix="examlops_mock_"))
         artifact_path = tmp_dir / "model.pkl"
@@ -829,7 +863,7 @@ def slurm_submit_task(
     return job_id, remote_model
 
 
-@task(name="slurm_wait", cache_policy=NO_CACHE)
+@task(name="train_wait", cache_policy=NO_CACHE)
 def slurm_wait_task(
     job_id: str,
     artifact_path: str | None,

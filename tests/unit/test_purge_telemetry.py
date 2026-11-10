@@ -108,9 +108,14 @@ def test_vacuum_backend_selector_reads_env(db, monkeypatch):
     assert da._is_sqlite_backend() is True
 
 
-def test_vacuum_still_runs_on_sqlite(db):
+def test_vacuum_still_runs_on_sqlite(db, monkeypatch):
     """The default (sqlite) path keeps vacuuming — no skip note in the summary."""
+    import examlops.data.data_assets as da
+
     _seed(db, old_days=200, fresh=1, old=2)
+    # Pin the backend: the suite also runs with EXAMLOPS_DB_BACKEND=postgres (test:postgres),
+    # and this test is about the sqlite branch, like its sibling above.
+    monkeypatch.setattr(da, "_is_sqlite_backend", lambda: True)
     counts = db.purge_telemetry(90, vacuum=True)
     assert "vacuum_skipped" not in counts
     assert counts["drift_snapshots"] == 2

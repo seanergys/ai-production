@@ -111,7 +111,7 @@ def test_every_workload_is_actually_readiness_gated():
 
     That claim is only true with a readinessProbe: without one Kubernetes marks a pod Ready the
     moment the container starts, so a rolling upgrade routes traffic to a replica that is not yet
-    serving. The agent tier carried the comment and no probe.
+    serving.
     """
     result = _render("--set", "global.imageRegistry=ghcr.io/example/")
     assert result.returncode == 0, result.stderr
@@ -119,7 +119,7 @@ def test_every_workload_is_actually_readiness_gated():
     deployments = [
         doc for doc in yaml.safe_load_all(result.stdout) if doc and doc.get("kind") == "Deployment"
     ]
-    assert len(deployments) == 3, [d["metadata"]["name"] for d in deployments]
+    assert len(deployments) == 2, [d["metadata"]["name"] for d in deployments]
 
     for dep in deployments:
         name = dep["metadata"]["name"]
@@ -139,47 +139,16 @@ def _images(doc: dict) -> list[str]:
 
 
 @needs_helm
-def test_copilot_is_wired_to_agent_and_dashboard_owns_api_routes():
+def test_dashboard_owns_api_routes():
     result = _render("--set", "global.imageRegistry=ghcr.io/example/")
     assert result.returncode == 0, result.stderr
     docs = [doc for doc in yaml.safe_load_all(result.stdout) if doc]
-
-    dashboard = next(
-        doc
-        for doc in docs
-        if doc.get("kind") == "Deployment" and doc["metadata"]["name"].endswith("-dashboard")
-    )
-    env = {
-        item["name"]: item.get("value")
-        for item in dashboard["spec"]["template"]["spec"]["containers"][0]["env"]
-    }
-    assert env["AGENT_URL"] == "http://rel-examlops-agent:18004"
 
     ingress = next(doc for doc in docs if doc.get("kind") == "Ingress")
     paths = ingress["spec"]["rules"][0]["http"]["paths"]
     backends = {path["path"]: path["backend"]["service"]["name"] for path in paths}
     assert backends["/api"] == "rel-examlops-dashboard"
     assert backends["/api/changes"] == "rel-examlops-control-plane"
-
-
-@needs_helm
-def test_ha_agent_uses_shared_checkpoint_backend_and_requires_api_key():
-    result = _render("--set", "global.imageRegistry=ghcr.io/example/")
-    assert result.returncode == 0, result.stderr
-    agent = next(
-        doc
-        for doc in yaml.safe_load_all(result.stdout)
-        if doc and doc.get("kind") == "Deployment" and doc["metadata"]["name"].endswith("-agent")
-    )
-    env = {
-        item["name"]: item.get("value")
-        for item in agent["spec"]["template"]["spec"]["containers"][0]["env"]
-    }
-    assert env["AGENT_CHECKPOINT_BACKEND"] == "postgres"
-    assert env["AGENT_MEMORY_ENABLED"] == "false"
-    assert env["AGENT_REQUIRE_API_KEY"] == "true"
-    assert env["AGENT_POSTGRES_DSN"] is None  # sourced from a Secret, never chart values
-    assert env["CONTROL_PLANE_URL"] == "http://rel-examlops-control-plane:8002"
 
 
 def test_chart_version_moves_with_the_platform():

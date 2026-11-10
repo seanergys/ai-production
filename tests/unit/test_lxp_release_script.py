@@ -58,8 +58,16 @@ def node(tmp_path):
             self.log = tmp_path / "docker.log"
 
         def run(self, *args, env=None, check=True):
+            # The image pin must come only from what a test passes in. GitLab CI sets
+            # EXAMLOPS_IMAGE_PREFIX/TAG for every job, so inheriting them turned the
+            # "release without a pin" cases into registry (pull) deploys.
+            inherited = {
+                k: v
+                for k, v in os.environ.items()
+                if k not in ("EXAMLOPS_IMAGE_PREFIX", "EXAMLOPS_IMAGE_TAG")
+            }
             environ = {
-                **os.environ,
+                **inherited,
                 "PATH": f"{shim}:{os.environ['PATH']}",
                 "DOCKER_LOG": str(self.log),
                 **(env or {}),

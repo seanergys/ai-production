@@ -209,7 +209,7 @@ def list_zoo_models() -> list[str]:
 
 def onboard_model(model: str, *, dry_run: bool = False, **opts: Any) -> dict[str, Any]:
     """Provision (or complete) a project for one Zoo model — project · storage · **MinIO connection** ·
-    budget · model · workbench · pipeline surfaces. Idempotent; safe to re-run from a notebook.
+    budget · model · pipeline surfaces. Idempotent; safe to re-run from a notebook.
 
     Keyword options pass through to :func:`examlops.modelzoo_adopt.adopt_model` (``connection_name``,
     ``provision_connection``, ``s3_endpoint``/``s3_access_key``/``s3_secret``/``s3_bucket``,

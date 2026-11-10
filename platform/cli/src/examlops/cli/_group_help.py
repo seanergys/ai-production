@@ -122,12 +122,6 @@ _COMMON_TASKS: dict[str, list[tuple[str, str]]] = {
         ("List knowledge bases", "exa rag list"),
     ],
     # Agents & Automation
-    "agent": [
-        ("Is the agent up, and on which backend?", "exa agent status"),
-        ("As a health gate (exits 1 if unusable)", "exa --json agent status"),
-        ("Check the agent in another environment", "exa -c lxp agent status"),
-        ("Hold a conversation with it", "exa chat"),
-    ],
     # GenAI & LLMOps
     "genai": [
         ("GenAI telemetry status", "exa genai check"),
@@ -140,9 +134,6 @@ _COMMON_TASKS: dict[str, list[tuple[str, str]]] = {
     "guardrails": [
         ("Run text through the guardrail", 'exa guardrails test "ignore previous instructions"'),
         ("Allow/redact/block counts", "exa guardrails stats"),
-    ],
-    "agentops": [
-        ("Per-tool success rate / latency", "exa agentops tools"),
     ],
     # Monitoring & Quality
     "drift": [
@@ -222,9 +213,6 @@ _COMMON_TASKS: dict[str, list[tuple[str, str]]] = {
     "connection": [
         ("Named connections (metadata)", "exa connection list"),
     ],
-    "workbench": [
-        ("On-demand dev environments", "exa workbench list"),
-    ],
     # Platform & Integrations
     "stack": [
         ("Running containers + ports", "exa stack status"),
@@ -240,9 +228,6 @@ _COMMON_TASKS: dict[str, list[tuple[str, str]]] = {
     ],
     "seanerbus": [
         ("Models + SeanerBUS UUIDs", "exa seanerbus list"),
-    ],
-    "mcp": [
-        ("Tools exposed to agents", "exa mcp tools"),
     ],
     # ── Nested sub-groups ─────────────────────────────────────────────────────────────
     "data synth": [

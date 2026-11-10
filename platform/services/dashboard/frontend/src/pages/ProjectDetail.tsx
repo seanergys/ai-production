@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, FolderKanban, Layers, Users, Cpu, DollarSign, Gauge,
-  PlusCircle, X, Clock, UserPlus, Plug, FlaskConical, Lock, Check,
-  Play, Square, HardDrive, Workflow, Trash2, PlugZap, Pencil, Boxes, ExternalLink,
+  PlusCircle, X, Clock, UserPlus, Plug, Lock, Check,
+  HardDrive, Workflow, Trash2, PlugZap, Pencil, Boxes,
 } from 'lucide-react'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ProvidersCard } from '@/components/ProvidersCard'
@@ -19,10 +19,6 @@ import {
   useConnections, useCreateConnection, useDeleteConnection, useTestConnection,
   CONNECTION_KINDS, type CreateConnectionBody, type ConnectionKind,
 } from '@/lib/connections'
-import {
-  useWorkbenches, useSetWorkbenchStatus, useCreateWorkbench, useDeleteWorkbench,
-  nextStatus, type CreateWorkbenchBody,
-} from '@/lib/workbenches'
 
 const STATUS_COLORS: Record<string, { bg: string; border: string; text: string }> = {
   ok:       { bg: 'oklch(0.72 0.18 155 / 12%)', border: 'oklch(0.72 0.18 155 / 30%)', text: 'var(--success-text)' },
@@ -349,143 +345,6 @@ function ConnectionsCard({ project, admin }: { project: string; admin: boolean }
             : 'No connections defined. An admin can add one, or use `exa connection create`.'} />
       )}
       {showNew && <CreateConnectionModal project={project} onClose={() => setShowNew(false)} />}
-    </SectionCard>
-  )
-}
-
-function CreateWorkbenchModal({ project, onClose }: { project: string; onClose: () => void }) {
-  const [name, setName] = useState('')
-  const [image, setImage] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const create = useCreateWorkbench(project)
-
-  const handleSubmit = async () => {
-    setError(null)
-    const body: CreateWorkbenchBody = { name: name.trim() }
-    if (image.trim()) body.image = image.trim()
-    try {
-      await create.mutateAsync(body)
-      onClose()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to create workbench')
-    }
-  }
-
-  const cli = `exa workbench create ${name || '<name>'} --project ${project}` +
-    (image.trim() ? ` --image ${image.trim()}` : '')
-  return (
-    <Modal title="New Workbench" cli={cli} onClose={onClose} onSubmit={handleSubmit}
-      submitting={create.isPending} disabled={!name.trim()} error={error}>
-      <label className="block space-y-1">
-        <span className="text-xs font-medium text-muted-foreground">Name</span>
-        <input value={name} onChange={e => setName(e.target.value)} placeholder="notebook"
-          className="w-full rounded-lg px-3 py-2 text-sm font-mono"
-          style={{ background: 'var(--surface-1)', border: '1px solid var(--border-md)' }} />
-      </label>
-      <label className="block space-y-1">
-        <span className="text-xs font-medium text-muted-foreground">Image (optional)</span>
-        <input value={image} onChange={e => setImage(e.target.value)}
-          placeholder="jupyter/scipy-notebook:latest"
-          className="w-full rounded-lg px-3 py-2 text-sm font-mono"
-          style={{ background: 'var(--surface-1)', border: '1px solid var(--border-md)' }} />
-      </label>
-      <p className="text-[11px] text-muted-foreground">
-        Creates a project-bound notebook with its own persistent volume
-        (<span className="font-mono">{project}-{name || '<name>'}-data</span>). Start it to inject
-        the project's connections as environment variables.
-      </p>
-    </Modal>
-  )
-}
-
-function WorkbenchesCard({ project, admin }: { project: string; admin: boolean }) {
-  const { data, isLoading } = useWorkbenches(project)
-  const setStatus = useSetWorkbenchStatus(project)
-  const del = useDeleteWorkbench(project)
-  const [showNew, setShowNew] = useState(false)
-
-  const newBtn = admin ? (
-    <button onClick={() => setShowNew(true)}
-      className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium"
-      style={{ background: 'oklch(0.64 0.20 265 / 12%)', border: '1px solid oklch(0.64 0.20 265 / 25%)', color: 'var(--accent-text)' }}>
-      <PlusCircle className="w-3 h-3" /> New workbench
-    </button>
-  ) : undefined
-
-  return (
-    <SectionCard icon={FlaskConical} title="Workbenches" action={newBtn}>
-      {isLoading ? (
-        <p className="text-sm text-muted-foreground italic">Loading workbenches…</p>
-      ) : data && data.length > 0 ? (
-        <div className="space-y-2">
-          {data.map(wb => {
-            const running = wb.status === 'RUNNING'
-            const next = nextStatus(wb.status)
-            const busy = setStatus.isPending && setStatus.variables?.name === wb.name
-            const delBusy = del.isPending && del.variables === wb.name
-            return (
-              <div key={wb.name}
-                className="flex items-center gap-3 rounded-lg px-3 py-2.5"
-                style={{ background: 'var(--surface-1)', border: '1px solid var(--border-sm)' }}>
-                <div className="min-w-0 flex-1 space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono text-sm">{wb.name}</span>
-                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-full uppercase tracking-wide"
-                      style={running
-                        ? { background: 'oklch(0.72 0.18 155 / 12%)', border: '1px solid oklch(0.72 0.18 155 / 30%)', color: 'var(--success-text)' }
-                        : { background: 'var(--surface-2)', border: '1px solid var(--border-md)', color: 'var(--faint-text)' }}>
-                      {wb.status}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground font-mono truncate">{wb.image}</p>
-                  {wb.volume && (
-                    <p className="text-[11px] text-muted-foreground font-mono truncate flex items-center gap-1">
-                      <HardDrive className="w-3 h-3 shrink-0" /> {wb.volume}
-                    </p>
-                  )}
-                </div>
-                {running && wb.url && (
-                  <a href={wb.url} target="_blank" rel="noreferrer" title="Open the notebook"
-                    className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium shrink-0"
-                    style={{ background: 'oklch(0.72 0.18 155 / 12%)', border: '1px solid oklch(0.72 0.18 155 / 30%)', color: 'var(--success-text)' }}>
-                    <ExternalLink className="w-3 h-3" /> Open
-                  </a>
-                )}
-                {admin && (
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                      onClick={() => setStatus.mutate({ name: wb.name, status: next })}
-                      disabled={busy}
-                      className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                      style={running
-                        ? { background: 'oklch(0.66 0.22 25 / 12%)', border: '1px solid oklch(0.66 0.22 25 / 25%)', color: 'var(--error-text)' }
-                        : { background: 'oklch(0.64 0.20 265 / 12%)', border: '1px solid oklch(0.64 0.20 265 / 25%)', color: 'var(--accent-text)' }}>
-                      {running ? <Square className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-                      {busy ? '…' : running ? 'Stop' : 'Start'}
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (!window.confirm(`Delete workbench "${wb.name}"? Its volume is not deleted.`)) return
-                        del.mutate(wb.name)
-                      }}
-                      disabled={delBusy} title="Delete workbench"
-                      className="inline-flex items-center rounded-lg px-2 py-1 text-xs font-medium disabled:opacity-50"
-                      style={{ background: 'oklch(0.66 0.22 25 / 12%)', border: '1px solid oklch(0.66 0.22 25 / 25%)', color: 'var(--error-text)' }}>
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      ) : (
-        <EmptyState icon={FlaskConical} title="No workbenches yet"
-          description={admin
-            ? 'Click "New workbench" to spin up an interactive notebook scoped to this project.'
-            : 'Spin one up with `exa workbench create` to get an interactive environment scoped to this project.'} />
-      )}
-      {showNew && <CreateWorkbenchModal project={project} onClose={() => setShowNew(false)} />}
     </SectionCard>
   )
 }
@@ -875,9 +734,6 @@ export function ProjectDetail() {
 
       {/* Connections (viewers read; admins create/delete/test) */}
       <ConnectionsCard project={data.name} admin={admin} />
-
-      {/* Workbenches (viewers see status; admins can start/stop) */}
-      <WorkbenchesCard project={data.name} admin={admin} />
 
       {/* Authored providers (ADR 0074): edit the Python behind this project's calculations */}
       <ProvidersCard project={data.name} admin={admin} />

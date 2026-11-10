@@ -48,8 +48,8 @@ def _matrix_services() -> set[str]:
 
 def test_there_is_something_to_compare():
     """Both assertions below pass trivially if either list comes back empty."""
-    assert len(_built_services()) >= 10, sorted(_built_services())
-    assert len(_matrix_services()) >= 10, sorted(_matrix_services())
+    assert len(_built_services()) >= 9, sorted(_built_services())
+    assert len(_matrix_services()) >= 9, sorted(_matrix_services())
 
 
 def test_every_locally_built_service_is_built_in_ci_or_excluded_on_purpose():

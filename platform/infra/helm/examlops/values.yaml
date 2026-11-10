@@ -15,9 +15,6 @@ global:
 # Provide a Kubernetes Secret with these keys and reference it here. The chart never embeds secrets.
 existingSecret: examlops-secrets   # keys: CONTROL_PLANE_TOKEN or CONTROL_PLANE_CREDENTIALS_JSON,
                                    #       EXAMLOPS_POSTGRES_DSN,
-                                   #       AGENT_API_KEY (legacy) or AGENT_API_KEYS_JSON,
-                                   #       DASHBOARD_AGENT_API_KEY, AGENT_POSTGRES_DSN,
-                                   #       one LLM credential,
                                    #       DASHBOARD_JWT_SECRET,
                                    #       DASHBOARD_SECRET_KEY, DASHBOARD_ADMIN_PASSWORD,
                                    #       DASHBOARD_VIEWER_PASSWORD, EXAMLOPS_SECRETS_KEYS, DATABASE_URL
@@ -84,34 +81,6 @@ dashboard:
   resources:
     requests: {cpu: 100m, memory: 256Mi}
     limits: {cpu: "1", memory: 1Gi}
-  pdb:
-    enabled: true
-    minAvailable: 1
-
-agent:
-  # Optional least-privilege Secret. Empty preserves the global existingSecret for upgrades.
-  existingSecret: ""
-  replicaCount: 2
-  image:
-    repository: examlops-agent
-    tag: ""
-    pullPolicy: IfNotPresent
-  port: 18004
-  # The chart owns only the control-plane/dashboard/agent tiers. Point these at the managed
-  # platform services available in the target namespace or network.
-  serviceUrls:
-    mlflow: http://mlflow:5000
-    rayServe: http://ray-serving:8001
-    prometheus: http://prometheus:9090
-  extraEnv: []
-  resources:
-    requests: {cpu: 100m, memory: 512Mi}
-    limits: {cpu: "1", memory: 1Gi}
-  autoscaling:
-    enabled: false
-    minReplicas: 2
-    maxReplicas: 10
-    targetCPUUtilizationPercentage: 70
   pdb:
     enabled: true
     minAvailable: 1

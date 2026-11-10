@@ -32,8 +32,6 @@ def platform_db(tmp_path, monkeypatch):
     monkeypatch.setenv("PLATFORM_DB", str(tmp_path / "platform.db"))
     # Keep the optional DBs pointed at non-existent paths so they degrade to skipped deterministically.
     monkeypatch.setenv("CONTROL_PLANE_DB", str(tmp_path / "nope-approvals.db"))
-    monkeypatch.setenv("AGENT_DB", str(tmp_path / "nope-agent.db"))
-    monkeypatch.setenv("AGENT_MEMORY_DB", str(tmp_path / "nope-skipper.db"))
     monkeypatch.setenv("MLFLOW_SQLITE_DB", str(tmp_path / "nope-mlflow.db"))
     # Config tier: point at a hermetic config dir with one file.
     cfg = tmp_path / "cfg" / "config.toml"

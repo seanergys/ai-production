@@ -32,7 +32,6 @@ import {
   ListChecks,
   LayoutDashboard,
   Lock,
-  NotebookPen,
   Radio,
   Rocket,
   Scale,
@@ -137,7 +136,6 @@ export const NAV_SECTIONS: NavSection[] = [
       { path: '/platform/providers', label: 'Providers', icon: Blocks },
       { path: '/platform/config', label: 'Config', icon: Settings2 },
       { path: '/platform/integrations', label: 'SeanerBUS', icon: Zap },
-      { path: '/platform/jupyter', label: 'Jupyter', icon: NotebookPen },
       { path: '/platform/flags', label: 'Flags', icon: Flag, adminOnly: true },
     ],
   },
@@ -175,7 +173,6 @@ export const ROUTE_REDIRECTS: Record<string, string> = {
   '/services': '/platform/services',
   '/config': '/platform/config',
   '/seanerbus': '/platform/integrations',
-  '/jupyter': '/platform/jupyter',
 }
 
 /** True when `itemPath` is the active route (exact for '/', prefix-aware for detail pages). */

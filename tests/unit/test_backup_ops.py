@@ -84,8 +84,6 @@ def test_scheduler_once_produces_bundle(tmp_path, monkeypatch):
 
     monkeypatch.setenv("PLATFORM_DB", str(tmp_path / "platform.db"))
     monkeypatch.setenv("CONTROL_PLANE_DB", str(tmp_path / "nope.db"))
-    monkeypatch.setenv("AGENT_DB", str(tmp_path / "nope2.db"))
-    monkeypatch.setenv("AGENT_MEMORY_DB", str(tmp_path / "nope3.db"))
     monkeypatch.setenv("MLFLOW_SQLITE_DB", str(tmp_path / "nope4.db"))
     cfg = tmp_path / "cfg" / "config.toml"
     cfg.parent.mkdir(parents=True)
@@ -125,8 +123,6 @@ def test_auto_backup_before_returns_dir(tmp_path, monkeypatch):
     monkeypatch.setenv("PLATFORM_DB", str(tmp_path / "platform.db"))
     monkeypatch.setenv("EXAMLOPS_BACKUP_DIR", str(tmp_path / "bk"))
     monkeypatch.setenv("CONTROL_PLANE_DB", str(tmp_path / "n1.db"))
-    monkeypatch.setenv("AGENT_DB", str(tmp_path / "n2.db"))
-    monkeypatch.setenv("AGENT_MEMORY_DB", str(tmp_path / "n3.db"))
     monkeypatch.setenv("MLFLOW_SQLITE_DB", str(tmp_path / "n4.db"))
     monkeypatch.setenv("EXAMLOPS_CONFIG", str(tmp_path / "cfg" / "config.toml"))
     import examlops.platform_db as pdb
@@ -209,8 +205,6 @@ def test_remote_push_list_pull_roundtrip(tmp_path, monkeypatch):
 def cli_env(tmp_path, monkeypatch):
     monkeypatch.setenv("PLATFORM_DB", str(tmp_path / "platform.db"))
     monkeypatch.setenv("CONTROL_PLANE_DB", str(tmp_path / "n1.db"))
-    monkeypatch.setenv("AGENT_DB", str(tmp_path / "n2.db"))
-    monkeypatch.setenv("AGENT_MEMORY_DB", str(tmp_path / "n3.db"))
     monkeypatch.setenv("MLFLOW_SQLITE_DB", str(tmp_path / "n4.db"))
     # Restore commands take a pre-op auto-backup — keep it in tmp, not the repo cwd.
     monkeypatch.setenv("EXAMLOPS_BACKUP_DIR", str(tmp_path / "auto"))

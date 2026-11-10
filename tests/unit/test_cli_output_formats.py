@@ -59,44 +59,44 @@ def test_to_yaml_roundtrips():
 
 
 def test_output_csv_renders_csv_table():
-    result = runner.invoke(app, ["-o", "csv", "mcp", "tools"])
+    result = runner.invoke(app, ["-o", "csv", "providers", "list"])
     assert result.exit_code == 0, result.output
     header = result.output.strip().splitlines()[0]
-    assert header.startswith("Tool,Kind,Tags,Description")
+    assert header.startswith("domain,name,kind,default")
 
 
 def test_output_yaml_renders_yaml():
     import yaml
 
-    result = runner.invoke(app, ["-o", "yaml", "mcp", "agent-card"])
+    result = runner.invoke(app, ["-o", "yaml", "config", "show"])
     assert result.exit_code == 0, result.output
     doc = yaml.safe_load(result.output)
-    assert doc["name"] == "ExaMLOps"
+    assert "control_plane_url" in doc
 
 
 def test_output_json_equivalent_to_json_flag():
-    a = runner.invoke(app, ["-o", "json", "mcp", "agent-card"])
-    b = runner.invoke(app, ["--json", "mcp", "agent-card"])
+    a = runner.invoke(app, ["-o", "json", "config", "show"])
+    b = runner.invoke(app, ["--json", "config", "show"])
     assert a.exit_code == 0 and b.exit_code == 0
-    assert json.loads(a.output)["name"] == json.loads(b.output)["name"] == "ExaMLOps"
+    assert json.loads(a.output) == json.loads(b.output)
 
 
 def test_default_is_human_table():
-    result = runner.invoke(app, ["mcp", "tools"])
+    result = runner.invoke(app, ["providers", "list"])
     assert result.exit_code == 0, result.output
     assert "┏" in result.output  # Rich table border → human mode
 
 
 def test_format_resets_between_invocations():
     # A structured invocation must not leak into a later default (table) invocation.
-    runner.invoke(app, ["-o", "json", "mcp", "agent-card"])
-    result = runner.invoke(app, ["mcp", "tools"])
+    runner.invoke(app, ["-o", "json", "config", "show"])
+    result = runner.invoke(app, ["providers", "list"])
     assert "┏" in result.output
     assert _output.output_format == "table"
 
 
 def test_invalid_output_format_rejected():
-    result = runner.invoke(app, ["-o", "xml", "mcp", "tools"])
+    result = runner.invoke(app, ["-o", "xml", "providers", "list"])
     assert result.exit_code != 0
 
 

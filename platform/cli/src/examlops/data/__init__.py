@@ -25,7 +25,6 @@ __all__ = [
     "get_db",
     "last_insert_id",
     "admission",
-    "agent",
     "audit",
     "autopilot",
     "coordination",

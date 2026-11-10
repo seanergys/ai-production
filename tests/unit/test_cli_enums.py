@@ -78,7 +78,6 @@ def test_stack_service_covers_all_compose_services():
         "loki",
         "promtail",
         "dashboard",
-        "jupyterhub",
         "seanerbus-sim",
         "seanerbus-bridge",
     ]:

@@ -113,7 +113,7 @@ def test_fuzzy_suggest_still_works():
 def test_the_agentic_surface_is_findable_under_one_title():
     """`exa --help` must name the agent category, not merely contain its commands.
 
-    The commands were always there — `ask`, `agentops`, `autopilot`, `mcp` — but spread over
+    The commands were always there — `autopilot` — but spread over
     four panels whose titles were Getting Started, GenAI & LLMOps, Monitoring & Quality and
     Platform & Integrations. A reader looking for "the agentic parts" found no such words and
     reported the surface as missing. Nothing was missing; the category had no name, which reads
@@ -121,7 +121,7 @@ def test_the_agentic_surface_is_findable_under_one_title():
     """
     panels = dict(_ROOT_PANELS)
     assert "Agents & Automation" in panels, "the agent category lost its own panel title"
-    assert {"ask", "agentops", "autopilot", "mcp"} <= set(panels["Agents & Automation"])
+    assert {"autopilot"} <= set(panels["Agents & Automation"])
 
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0, result.output

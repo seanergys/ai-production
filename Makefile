@@ -85,11 +85,8 @@ endif
         seanerbus-up seanerbus-down seanerbus-bridge-logs seanerbus-reqgen-logs \
         seanerbus-install seanerbus-bridge-up seanerbus-test-req \
         dashboard-up dashboard-logs dashboard-check dashboard-check-backend ci-frontend ci-control-plane \
-        jupyter-up jupyter-down jupyter-logs jupyter-add-user \
         control-plane-up control-plane-down control-plane-logs \
         firewall-fix-up firewall-fix-down firewall-fix-logs \
-        agent agent-chat agent-server \
-        skipper skipper-chat skipper-server skipper-test skipper-memory \
         finops-providers finops-plugin-example \
         remote-rebuild selfheal smoke-check \
         test-postgres \
@@ -97,9 +94,9 @@ endif
         lint lint-fix typecheck typecheck-cli test test-unit test-integration test-cov check \
         test-fast test-failed test-serial test-slowest gate \
         alerts-check dr-drill helm-validate \
-        ci ci-modelzoo ci-infra ci-examlops ci-agent \
+        ci ci-modelzoo ci-infra ci-examlops \
         preflight preflight-nopg \
-        modelzoo-test agent-test \
+        modelzoo-test \
         docs-serve docs-build docs-cli \
         bootstrap \
         _guard-uv _guard-python _guard-service
@@ -128,8 +125,7 @@ help: ## Show this help message
 	  "MinIO S3 API"     "http://localhost:19000" \
 	  "Prometheus"       "http://localhost:19090  (monitoring profile)" \
 	  "Grafana"          "http://localhost:13000  (monitoring profile)" \
-	  "Dashboard"        "http://localhost:18099  (ExaMLOps central dashboard)" \
-	  "JupyterHub"       "http://localhost:18888  (jupyter profile — make jupyter-up)"
+	  "Dashboard"        "http://localhost:18099  (ExaMLOps central dashboard)"
 	@printf "\n$(BOLD)Override variables$(RESET)\n"
 	@printf "  %-30s %s\n" \
 	  "SERVICE=<name>"  "container for stack-shell    (e.g. mlflow)" \
@@ -205,7 +201,7 @@ modelzoo: ## Fetch the upstream model library into ./modelzoo at the tested comm
 	  fi; \
 	fi
 
-stack-up: _guard-uv modelzoo ## Start core stack: Postgres · MLflow · Prefect · Ray · Control Plane · Agent · Dashboard
+stack-up: _guard-uv modelzoo ## Start core stack: Postgres · MLflow · Prefect · Ray · Control Plane · Dashboard
 	@printf "$(BOLD)Starting ExaMLOps core stack...$(RESET)\n"
 	@cd $(COMPOSE_DIR) && $(DC) up -d --build
 	@printf "\n$(GREEN)Core stack is up:$(RESET)\n"
@@ -215,13 +211,12 @@ stack-up: _guard-uv modelzoo ## Start core stack: Postgres · MLflow · Prefect 
 	  "Prefect UI"    "http://localhost:14200" \
 	  "Ray Serve API" "http://localhost:18001  (/docs · /health · /models)" \
 	  "Ray Dashboard" "http://localhost:18265"
-	@printf "  %-30s %s\n" "Skipper Agent" "http://localhost:18004  (/healthz)"
 	@printf "\n$(DIM)Tip: 'make monitoring-up' to also start Prometheus/Grafana/Loki · 'make full-up' for everything$(RESET)\n\n"
 
-stop-all: ## Stop ALL ExaMLOps containers (core + monitoring + SeanerBUS + Jupyter) — prevents auto-restart on reboot
+stop-all: ## Stop ALL ExaMLOps containers (core + monitoring + SeanerBUS) — prevents auto-restart on reboot
 	@printf "$(BOLD)Stopping all ExaMLOps containers...$(RESET)\n"
 	@cd $(COMPOSE_DIR) && $(DC) \
-	  --profile monitoring --profile seanerbus --profile jupyter \
+	  --profile monitoring --profile seanerbus \
 	  down 2>/dev/null || true
 	@if [ -d "$(SEANERBUS_DIR)" ]; then \
 	  printf "$(DIM)Stopping SeanerBUS reqgen...$(RESET)\n"; \
@@ -233,7 +228,7 @@ stop-all: ## Stop ALL ExaMLOps containers (core + monitoring + SeanerBUS + Jupyt
 rebuild: ## Force-rebuild ALL images (--no-cache) + restart core + monitoring  ← use after Dockerfile/dep changes
 	@printf "$(BOLD)Stopping all running containers...$(RESET)\n"
 	@cd $(COMPOSE_DIR) && $(DC) \
-	  --profile monitoring --profile jupyter --profile seanerbus \
+	  --profile monitoring --profile seanerbus \
 	  down --remove-orphans 2>/dev/null || true
 	@printf "$(BOLD)Rebuilding all images (no cache)...$(RESET)\n"
 	@cd $(COMPOSE_DIR) && $(DC) --profile monitoring build --no-cache
@@ -254,21 +249,17 @@ rebuild: ## Force-rebuild ALL images (--no-cache) + restart core + monitoring  �
 	  "Loki"          "http://localhost:13100"
 	@printf "\n"
 
-rebuild-all: ## Force-rebuild ALL images including JupyterHub + restart EVERYTHING (core + monitoring + jupyter)
+rebuild-all: ## Force-rebuild ALL images + restart EVERYTHING (core + monitoring)
 	@printf "$(BOLD)Stopping all running containers...$(RESET)\n"
 	@cd $(COMPOSE_DIR) && $(DC) \
-	  --profile monitoring --profile jupyter --profile seanerbus \
+	  --profile monitoring --profile seanerbus \
 	  down --remove-orphans 2>/dev/null || true
-	@printf "$(BOLD)Rebuilding JupyterLab user image...$(RESET)\n"
-	@docker build --network=host -t examlops-jupyterlab \
-	  -f $(COMPOSE_DIR)/Dockerfile.jupyterlab $(COMPOSE_DIR) --no-cache
 	@printf "$(BOLD)Rebuilding all service images (no cache)...$(RESET)\n"
-	@cd $(COMPOSE_DIR) && $(DC) --profile monitoring --profile jupyter build --no-cache
+	@cd $(COMPOSE_DIR) && $(DC) --profile monitoring build --no-cache
 	@printf "$(BOLD)Starting everything...$(RESET)\n"
 	@cd $(COMPOSE_DIR) && $(DC) up -d
 	@cd $(COMPOSE_DIR) && $(DC) --profile monitoring up -d \
 	  prometheus grafana loki promtail alertmanager tempo
-	@cd $(COMPOSE_DIR) && $(DC) --profile jupyter up -d jupyterhub
 	@printf "\n$(GREEN)$(BOLD)Full rebuild complete — all services running:$(RESET)\n"
 	@printf "  %-30s %s\n" \
 	  "Dashboard"     "http://localhost:18099" \
@@ -278,8 +269,7 @@ rebuild-all: ## Force-rebuild ALL images including JupyterHub + restart EVERYTHI
 	  "Control Plane" "http://localhost:18002" \
 	  "Prometheus"    "http://localhost:19090" \
 	  "Grafana"       "http://localhost:13000  (admin / admin)" \
-	  "Loki"          "http://localhost:13100" \
-	  "JupyterHub"    "http://localhost:18888"
+	  "Loki"          "http://localhost:13100"
 	@printf "\n"
 
 remote-rebuild: ## Pull latest code + force-rebuild + restart all containers on the deploy node
@@ -291,7 +281,7 @@ remote-rebuild: ## Pull latest code + force-rebuild + restart all containers on 
 	  cd platform/infra/docker-compose; \
 	  echo '=== stopping all containers ==='; \
 	  docker compose --env-file $(DEPLOY_PATH)/.env \
-	    --profile monitoring --profile jupyter --profile seanerbus \
+	    --profile monitoring --profile seanerbus \
 	    down --remove-orphans 2>/dev/null || true; \
 	  echo '=== rebuilding all images (no cache) ==='; \
 	  docker compose --env-file $(DEPLOY_PATH)/.env \
@@ -459,35 +449,6 @@ dashboard-check-backend: ## Dashboard BACKEND tests only (use when there is no n
 	  $(VENV_BIN)/pytest tests/ $(PYTEST_PARALLEL) --tb=short -q
 	@printf "$(GREEN)Dashboard BACKEND checks passed — the frontend half did NOT run.$(RESET)\n"
 
-# =============================================================================
-##@ JupyterHub  (multi-user notebook server — Phase 9)
-# =============================================================================
-
-jupyter-up: ## Build images + start JupyterHub multi-user notebook server (port 18888)
-	@printf "$(BOLD)Building JupyterLab user image...$(RESET)\n"
-	@docker build --network=host -t examlops-jupyterlab -f $(COMPOSE_DIR)/Dockerfile.jupyterlab $(COMPOSE_DIR)
-	@printf "$(BOLD)Starting JupyterHub...$(RESET)\n"
-	@cd $(COMPOSE_DIR) && $(DC) --profile jupyter up -d --build jupyterhub
-	@printf "\n$(GREEN)JupyterHub is up:$(RESET)\n"
-	@printf "  %-30s %s\n" \
-	  "JupyterHub UI" "http://localhost:18888  (login with your account)"
-	@printf "\n$(DIM)VS Code: Jupyter extension → Specify Server → http://localhost:18888/user/<name>/?token=<token>$(RESET)\n\n"
-
-jupyter-down: ## Stop JupyterHub (user volumes are preserved)
-	@cd $(COMPOSE_DIR) && $(DC) --profile jupyter stop jupyterhub
-	@cd $(COMPOSE_DIR) && $(DC) --profile jupyter rm -f jupyterhub
-	@printf "$(DIM)JupyterHub stopped. User home volumes preserved.$(RESET)\n"
-
-jupyter-logs: ## Tail JupyterHub logs
-	@cd $(COMPOSE_DIR) && $(DC) --profile jupyter logs -f jupyterhub
-
-jupyter-add-user: ## Add a JupyterHub user  USER=<name>  HUB_TOKEN=<admin-api-token>
-	@[ -n "$(USER)" ] || (printf "$(RED)Error: USER= is required  (e.g. make jupyter-add-user USER=alice HUB_TOKEN=<token>)$(RESET)\n"; exit 1)
-	@curl -sf -X POST http://localhost:18888/hub/api/users/$(USER) \
-	  -H "Authorization: token $${HUB_TOKEN:?HUB_TOKEN= is required — generate at http://localhost:18888/hub/token}" \
-	  | python3 -m json.tool
-	@printf "$(GREEN)User '$(USER)' created. Set password via: http://localhost:18888/hub/admin$(RESET)\n"
-
 # Training, Prefect deployments, Ray Serve checks/reloads, approvals, ModelZoo
 # status, and model scaffolding live in the `exa` CLI. Keep those workflows
 # documented in `exa --help` and docs/reference/cli.md so there is one source
@@ -523,16 +484,6 @@ firewall-fix-down: ## Stop the self-healing Docker-egress sidecar
 
 firewall-fix-logs: ## Tail the firewall-fix sidecar (shows each rule (re-)apply)
 	@cd $(FIREWALL_FIX_DIR) && docker compose logs -f
-
-# =============================================================================
-##@ Skipper  (LangGraph management agent — CLI, web, OpenAI-compatible bridge)
-# =============================================================================
-
-skipper: install ## Start Skipper, the ExaMLOps management agent CLI (backend: Azure/Claude API or Ollama)
-	@set -a; [ -f .env ] && . ./.env || true; set +a; \
-	$(PYTHON) platform/services/agent/agent.py
-
-agent: skipper ## Alias for `skipper` (backward compatibility)
 
 # =============================================================================
 ##@ Python Environment
@@ -717,7 +668,7 @@ gate: install-dev ## TIER 2 (~2min) — the pre-push gate: lint · format · typ
 check: lint typecheck test dashboard-check ## Run all quality checks: lint · typecheck · test · dashboard
 	@printf "\n$(GREEN)$(BOLD)All checks passed.$(RESET)\n\n"
 
-ci: ci-modelzoo ci-infra ci-examlops ci-agent ci-frontend ci-control-plane ## Run every CI job group locally (mirrors GitLab CI)
+ci: ci-modelzoo ci-infra ci-examlops ci-frontend ci-control-plane ## Run every CI job group locally (mirrors GitLab CI)
 	@printf "\n$(GREEN)$(BOLD)All CI job groups passed locally.$(RESET)\n\n"
 
 smoke-check: ## Run post-deploy health probes against the local stack
@@ -765,12 +716,11 @@ HELM_REPO_URL ?= https://mskazemi.github.io/ExaMLOps
 IMAGE_TAG ?= $(shell sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml | head -1)
 IMAGE_PREFIX ?=
 
-images: ## Build the three container images the Helm chart deploys (control-plane, dashboard, agent)
+images: ## Build the two container images the Helm chart deploys (control-plane, dashboard)
 	@printf "$(BOLD)Building ExaMLOps images at tag $(IMAGE_TAG)...$(RESET)\n"
 	docker build -f platform/services/control_plane/Dockerfile -t $(IMAGE_PREFIX)examlops-control-plane:$(IMAGE_TAG) .
 	docker build -f platform/infra/docker-compose/Dockerfile.dashboard -t $(IMAGE_PREFIX)examlops-dashboard:$(IMAGE_TAG) .
-	docker build -f platform/services/agent/Dockerfile -t $(IMAGE_PREFIX)examlops-agent:$(IMAGE_TAG) .
-	@printf "$(GREEN)Built 3 images at $(IMAGE_TAG).$(RESET)\n"
+	@printf "$(GREEN)Built 2 images at $(IMAGE_TAG).$(RESET)\n"
 	@printf "  Push with IMAGE_PREFIX=ghcr.io/<owner>/ make images && docker push ...\n"
 	@printf "  Then: helm install ... --set global.imageRegistry=ghcr.io/<owner>/\n"
 
@@ -849,50 +799,43 @@ ci-frontend: ## Mirror GitLab 'test:frontend' job — dashboard frontend lint + 
 	@cd platform/services/dashboard/frontend && npm ci -q && npm run lint && npm test && npm run build
 	@printf "$(GREEN)CI · dashboard frontend passed.$(RESET)\n"
 
-ci-agent: install-dev ## Mirror the 'test:agent' job — the Skipper agent suite
-	@printf "$(BOLD)CI · agent (skipper)$(RESET)\n"
-	@$(MAKE) --no-print-directory skipper-test
-	@printf "$(GREEN)CI · agent passed.$(RESET)\n"
-
 preflight: install-dev ## Full local mirror of every BLOCKING GitLab CI job — run before pushing
 	@printf "$(BOLD)Preflight$(RESET)  (mirrors GitLab CI blocking gates)\n"
-	@printf "$(BOLD)1/16 sanity: python syntax$(RESET)\n"
+	@printf "$(BOLD)1/15 sanity: python syntax$(RESET)\n"
 	@find platform/ pipelines/ serving/ tests/ tools/ -name "*.py" \
 	  -not -path "*/node_modules/*" -not -path "*/.venv/*" -print0 \
 	  | xargs -0 -r $(VENV)/bin/python -m py_compile
-	@printf "$(BOLD)2/16 sanity: repo structure$(RESET)\n"
+	@printf "$(BOLD)2/15 sanity: repo structure$(RESET)\n"
 	@test -f pyproject.toml
 	@test -d platform/cli/src/examlops
 	@test -d platform/services/dashboard
 	@test -d platform/services/control_plane
 	@test -f platform/infra/docker-compose/docker-compose.yml
 	@test -d usecases/seanergy/models
-	@printf "$(BOLD)3/16 sanity: secret scan$(RESET)\n"
+	@printf "$(BOLD)3/15 sanity: secret scan$(RESET)\n"
 	@$(VENV)/bin/exa secrets scan platform/
 	@$(VENV)/bin/exa secrets scan pipelines/
-	@printf "$(BOLD)4/16 ruff check$(RESET)\n"
+	@printf "$(BOLD)4/15 ruff check$(RESET)\n"
 	@$(VENV)/bin/ruff check platform/cli/src/ tests/ pipelines/ serving/ platform/services/ platform/clients/ usecases/
-	@printf "$(BOLD)5/16 ruff format --check$(RESET)  (HARD failure in CI)\n"
+	@printf "$(BOLD)5/15 ruff format --check$(RESET)  (HARD failure in CI)\n"
 	@$(VENV)/bin/ruff format --check platform/cli/src/ tests/ pipelines/ serving/ platform/services/ platform/clients/ usecases/
-	@printf "$(BOLD)6/16 mypy$(RESET)  (HARD failure in CI)\n"
+	@printf "$(BOLD)6/15 mypy$(RESET)  (HARD failure in CI)\n"
 	@$(VENV)/bin/mypy pipelines/ serving/ platform/services/ --ignore-missing-imports
-	@printf "$(BOLD)7/16 unit tests$(RESET)\n"
+	@printf "$(BOLD)7/15 unit tests$(RESET)\n"
 	@$(VENV)/bin/pytest tests/unit/ --tb=short -q
-	@printf "$(BOLD)8/16 integration tests$(RESET)  (the suite that masked the v0.24.0 regression)\n"
+	@printf "$(BOLD)8/15 integration tests$(RESET)  (the suite that masked the v0.24.0 regression)\n"
 	@$(VENV)/bin/pytest tests/integration/ --tb=short -q
-	@printf "$(BOLD)9/16 dashboard backend$(RESET)\n"
+	@printf "$(BOLD)9/15 dashboard backend$(RESET)\n"
 	@$(UV) pip install -q -r platform/services/dashboard/backend/requirements.txt
 	@cd platform/services/dashboard/backend && \
 	  EXAMLOPS_DOCS_ROOT=$(CURDIR) $(CURDIR)/$(VENV)/bin/pytest tests/ --tb=short -q
-	@printf "$(BOLD)10/16 skipper agent tests$(RESET)  (blocking in CI since the test:agent job)\n"
-	@$(MAKE) --no-print-directory skipper-test
-	@printf "$(BOLD)11/16 dashboard frontend$(RESET)  (blocking in CI since the test:frontend job)\n"
+	@printf "$(BOLD)10/15 dashboard frontend$(RESET)  (blocking in CI since the test:frontend job)\n"
 	@$(MAKE) --no-print-directory ci-frontend
-	@printf "$(BOLD)12/16 control plane$(RESET)  (blocking in CI since the test:control-plane job)\n"
+	@printf "$(BOLD)11/15 control plane$(RESET)  (blocking in CI since the test:control-plane job)\n"
 	@$(MAKE) --no-print-directory ci-control-plane
-	@printf "$(BOLD)13/16 infra$(RESET)  (compose + slurm-lint + alert-rules)\n"
+	@printf "$(BOLD)12/15 infra$(RESET)  (compose + slurm-lint + alert-rules)\n"
 	@$(MAKE) --no-print-directory ci-infra
-	@printf "$(BOLD)14/16 helm chart$(RESET)  (blocking in CI since the test:infra:helm job)\n"
+	@printf "$(BOLD)13/15 helm chart$(RESET)  (blocking in CI since the test:infra:helm job)\n"
 	@if command -v helm >/dev/null 2>&1; then \
 	  $(MAKE) --no-print-directory helm-validate; \
 	  $(MAKE) --no-print-directory helm-package; \
@@ -901,9 +844,9 @@ preflight: install-dev ## Full local mirror of every BLOCKING GitLab CI job — 
 	  printf "$(RED)Install it (https://helm.sh/docs/intro/install/) so the chart gate runs here too.$(RESET)\n"; \
 	  exit 1; \
 	fi
-	@printf "$(BOLD)15/16 docs site$(RESET)  (blocking in CI since the test:docs job)\n"
+	@printf "$(BOLD)14/15 docs site$(RESET)  (blocking in CI since the test:docs job)\n"
 	@$(MAKE) --no-print-directory docs-build
-	@printf "$(BOLD)16/16 postgres backend$(RESET)  (the whole suite again on Postgres — slow; needs docker)\n"
+	@printf "$(BOLD)15/15 postgres backend$(RESET)  (the whole suite again on Postgres — slow; needs docker)\n"
 	@if [ -n "$(PREFLIGHT_SKIP_PG)" ]; then \
 	  printf "$(RED)SKIPPED by PREFLIGHT_SKIP_PG — the blocking job test:postgres was NOT mirrored.$(RESET)\n"; \
 	else \
@@ -958,49 +901,6 @@ modelzoo-test: ## Run modelzoo test suite — smoke + unit (uses poetry in model
 	    || pip install -q -r requirements.txt)
 	@cd $(MODELZOO_DIR) && python -m pytest tests/smoke/ tests/unit/ -v --tb=short
 	@printf "$(GREEN)ModelZoo tests passed.$(RESET)\n"
-
-skipper-test:  ## Run the Skipper agent unit tests
-	@# Install from requirements.txt, the pinned source of truth. The hardcoded list that
-	@# used to live here had already drifted from it (no httpx, uvicorn without [standard]),
-	@# which is what a second copy of a dependency set always does.
-	@$(VENV)/bin/pip install -q -r platform/services/agent/requirements.txt
-	@$(VENV)/bin/pip install -q pytest-asyncio
-	@$(VENV)/bin/pytest platform/services/agent/tests $(PYTEST_PARALLEL) -q
-
-agent-test: skipper-test  ## Alias for `skipper-test` (backward compatibility)
-
-skipper-server: install ## Start Skipper's web UI + OpenAI-compatible bridge (port 18004)
-	@set -a; [ -f .env ] && . ./.env || true; set +a; \
-	printf "$(BOLD)Skipper (ExaMLOps agent)$(RESET)  →  http://localhost:$${AGENT_SERVER_PORT:-18004}\n"; \
-	$(PYTHON) platform/services/agent/agent_server.py
-
-agent-server: skipper-server ## Alias for `skipper-server` (backward compatibility)
-
-skipper-chat: install ## Chat with Skipper via the native `exa chat` client
-	@set -a; [ -f .env ] && . ./.env || true; set +a; \
-	AGENT_URL="$${AGENT_URL:-http://localhost:$${AGENT_SERVER_PORT:-18004}}" \
-	$(VENV_BIN)/exa chat
-
-agent-chat: skipper-chat ## Alias for `skipper-chat` (backward compatibility)
-
-skipper-memory: ## Admin Skipper's long-term memory (stats|list|export|delete); e.g. make skipper-memory ARGS=stats
-	@set -a; [ -f .env ] && . ./.env || true; set +a; \
-	cd platform/services/agent && $(PWD)/$(PYTHON) -m skipper.memory_admin $${ARGS:-stats}
-
-.PHONY: skipper-knowledge-ingest
-skipper-knowledge-ingest: ## Chunk+embed the docs into Skipper's knowledge tier (T2 docs-RAG)
-	@set -a; [ -f .env ] && . ./.env || true; set +a; \
-	cd platform/services/agent && $(PWD)/$(PYTHON) -m skipper.knowledge ingest $${ARGS:-}
-
-.PHONY: skipper-watch
-skipper-watch: ## Run one skipper-watch monitoring cycle (drift/cost → outbox+audit+memory); ARGS=--dry-run
-	@set -a; [ -f .env ] && . ./.env || true; set +a; \
-	cd platform/services/agent && $(PWD)/$(PYTHON) -m skipper.watch --once $${ARGS:-}
-
-.PHONY: skipper-consolidate
-skipper-consolidate: ## Offline memory reflection: promote recurring episodes (review-gated) + reinforce
-	@set -a; [ -f .env ] && . ./.env || true; set +a; \
-	cd platform/services/agent && $(PWD)/$(PYTHON) -m skipper.consolidate $${ARGS:-}
 
 # =============================================================================
 ##@ Convenience

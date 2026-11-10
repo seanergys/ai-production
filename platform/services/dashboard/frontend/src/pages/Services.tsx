@@ -14,7 +14,6 @@ const EXTERNAL_SERVICE_CONFIG: Record<string, string> = {
   prometheus: "prometheus_url",
   minio: "minio_console_url",
   "control-plane": "control_plane_url",
-  jupyterhub: "jupyterhub_url",
 }
 
 const DESCRIPTIONS: Record<string, string> = {
@@ -25,7 +24,6 @@ const DESCRIPTIONS: Record<string, string> = {
   prometheus: "Metrics scraping",
   minio: "S3-compatible object storage",
   "control-plane": "Retrain trigger API",
-  jupyterhub: "Multi-user notebook server (separate profile — make jupyter-up)",
   postgres: "MLflow metadata database",
   loki: "Log aggregation",
   promtail: "Log shipper",

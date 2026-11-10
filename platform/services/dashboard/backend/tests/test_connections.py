@@ -1,7 +1,6 @@
-"""Connections (ADR 0087) + Workbenches (ADR 0090) dashboard routers.
+"""Connections (ADR 0087) dashboard router.
 
-Verifies: connections are read-only and never leak a secret value; workbench listing is
-viewer-gated; status flips require admin and are audited.
+Verifies: connections never leak a secret value, and writes require admin.
 """
 
 import dbconn
@@ -15,13 +14,12 @@ from tests.conftest import ADMIN_PW, VIEWER_PW
 def platform_db(tmp_path, monkeypatch):
     """Seed through the owning modules, not raw INSERTs.
 
-    ``connections`` and ``workbenches`` are deliberately *not* created by ``init_db()`` — each is
-    owned by its own module and created on first write — so seeding them by hand meant keeping a
-    second copy of two more schemas. Going through ``create_connection``/``create_workbench``
-    also means the secret takes the real D7 indirection rather than a hand-written ``secret_ref``.
+    ``connections`` is deliberately *not* created by ``init_db()`` — it is owned by its own
+    module and created on first write — so seeding it by hand meant keeping a second copy of its
+    schema. Going through ``create_connection`` also means the secret takes the real D7
+    indirection rather than a hand-written ``secret_ref``.
     """
     from examlops.connections import create_connection
-    from examlops.workbenches import create_workbench
 
     db = tmp_path / "platform.db"
     monkeypatch.setenv("PLATFORM_DB", str(db))
@@ -37,12 +35,6 @@ def platform_db(tmp_path, monkeypatch):
             "access_key": "minioadmin",
         },
         secret_value="minioadmin-secret",
-        created_by="alice",
-    )
-    create_workbench(
-        "nb",
-        "research",
-        image="jupyter/scipy-notebook:latest",
         created_by="alice",
     )
     return str(db)
@@ -196,141 +188,3 @@ async def test_connection_delete_unknown_404(client, platform_db):
         headers={"Authorization": f"Bearer {token}"},
     )
     assert r.status_code == 404
-
-
-async def test_workbench_list_viewer(client, platform_db):
-    token = await _login(client, VIEWER_PW)
-    r = await client.get(
-        "/api/v1/workbenches?project=research", headers={"Authorization": f"Bearer {token}"}
-    )
-    assert r.status_code == 200
-    body = r.json()
-    assert body[0]["name"] == "nb"
-    assert body[0]["status"] == "STOPPED"
-
-
-async def test_workbench_status_requires_admin(client, platform_db):
-    token = await _login(client, VIEWER_PW)
-    r = await client.post(
-        "/api/v1/workbenches/research/nb/status",
-        json={"status": "RUNNING"},
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert r.status_code == 403
-
-
-async def test_workbench_status_flip_audited(client, platform_db):
-    token = await _login(client, ADMIN_PW)
-    r = await client.post(
-        "/api/v1/workbenches/research/nb/status",
-        json={"status": "RUNNING"},
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert r.status_code == 200
-    assert r.json()["status"] == "RUNNING"
-
-    conn = dbconn.connect(platform_db, row_factory=None)
-    row = conn.execute(
-        "SELECT status FROM workbenches WHERE project='research' AND name='nb'"
-    ).fetchone()
-    assert row[0] == "RUNNING"
-    audited = conn.execute(
-        "SELECT COUNT(*) FROM audit_events WHERE action='workbench_status_changed'"
-    ).fetchone()[0]
-    conn.close()
-    assert audited == 1
-
-
-async def test_workbench_status_unknown_404(client, platform_db):
-    token = await _login(client, ADMIN_PW)
-    r = await client.post(
-        "/api/v1/workbenches/research/ghost/status",
-        json={"status": "RUNNING"},
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert r.status_code == 404
-
-
-async def test_workbench_create_requires_admin(client, platform_db):
-    token = await _login(client, VIEWER_PW)
-    r = await client.post(
-        "/api/v1/workbenches",
-        json={"project": "research", "name": "nb2"},
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert r.status_code == 403
-
-
-async def test_workbench_create_and_delete(client, platform_db):
-    token = await _login(client, ADMIN_PW)
-    # A project must exist for a workbench to bind to (examlops.workbenches parity path).
-    pr = await client.post(
-        "/api/v1/projects",
-        json={"name": "research", "cpuLimit": 4, "memoryLimitGb": 8, "storageGb": 50},
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert pr.status_code in (201, 409), pr.text
-    r = await client.post(
-        "/api/v1/workbenches",
-        json={"project": "research", "name": "nb2", "image": "jupyter/minimal-notebook:latest"},
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert r.status_code == 201, r.text
-    body = r.json()
-    assert body["name"] == "nb2"
-    assert body["project"] == "research"
-    assert body["status"] == "STOPPED"
-    assert body["volume"] == "research-nb2-data"  # per-workbench local persistent volume
-    # Appears in the (viewer) list for the project.
-    v = await _login(client, VIEWER_PW)
-    lr = await client.get(
-        "/api/v1/workbenches?project=research", headers={"Authorization": f"Bearer {v}"}
-    )
-    assert "nb2" in {w["name"] for w in lr.json()}
-    # Audited.
-    conn = dbconn.connect(platform_db, row_factory=None)
-    assert (
-        conn.execute(
-            "SELECT COUNT(*) FROM audit_events WHERE action='workbench_created' AND target='nb2'"
-        ).fetchone()[0]
-        == 1
-    )
-    conn.close()
-    # Delete it.
-    dr = await client.delete(
-        "/api/v1/workbenches/research/nb2", headers={"Authorization": f"Bearer {token}"}
-    )
-    assert dr.status_code == 200, dr.text
-    assert dr.json()["deleted"] is True
-
-
-async def test_workbench_delete_unknown_404(client, platform_db):
-    token = await _login(client, ADMIN_PW)
-    r = await client.delete(
-        "/api/v1/workbenches/research/ghost", headers={"Authorization": f"Bearer {token}"}
-    )
-    assert r.status_code == 404
-
-
-def test_workbench_open_url_and_server_name(monkeypatch):
-    # The Open URL + named-server id are computed deterministically from the Hub env.
-    import routers.workbenches as W
-
-    monkeypatch.setenv("JUPYTERHUB_API_URL", "http://examlops-jupyterhub:8000/hub/api")
-    monkeypatch.setenv("JUPYTERHUB_PUBLIC_URL", "http://localhost:18888")
-    monkeypatch.setenv("JUPYTERHUB_DASHBOARD_TOKEN", "tok")
-    monkeypatch.setenv("JUPYTERHUB_WORKBENCH_USER", "admin")
-    assert W._hub_enabled() is True
-    assert W._server_name("minio-demo", "test") == "minio-demo-test"
-    assert (
-        W._open_url("minio-demo", "test") == "http://localhost:18888/user/admin/minio-demo-test/lab"
-    )
-
-
-def test_workbench_url_none_without_hub(monkeypatch):
-    import routers.workbenches as W
-
-    monkeypatch.delenv("JUPYTERHUB_API_URL", raising=False)
-    monkeypatch.delenv("JUPYTERHUB_DASHBOARD_TOKEN", raising=False)
-    assert W._hub_enabled() is False
-    assert W._open_url("p", "n") is None

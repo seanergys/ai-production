@@ -3,7 +3,6 @@ ExaMLOps {{ .Chart.AppVersion }} deployed as release {{ .Release.Name }} (cluste
 Tiers (all stateless, multi-replica):
   control-plane  x{{ .Values.controlPlane.replicaCount }} (HPA {{ .Values.controlPlane.autoscaling.minReplicas }}-{{ .Values.controlPlane.autoscaling.maxReplicas }})
   dashboard      x{{ .Values.dashboard.replicaCount }}
-  agent          x{{ .Values.agent.replicaCount }}
 
 {{ if .Values.ingress.enabled -}}
 Reach it at: https://{{ .Values.ingress.host }}/

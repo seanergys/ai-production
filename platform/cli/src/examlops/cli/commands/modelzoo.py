@@ -200,7 +200,7 @@ def adopt(
         False, "--dry-run", help="Preview what would be provisioned without writing."
     ),
 ):
-    """Provision one project per model (storage · MinIO connection · budget · workbench · pipelines).
+    """Provision one project per model (storage · MinIO connection · budget · pipelines).
     Idempotent.
 
     Wires each model its own project with a bound per-project MinIO/S3 connection (endpoint/keys from
@@ -248,6 +248,4 @@ def adopt(
         rows,
     )
     if not dry_run:
-        _output.hint(
-            "Next: exa pipeline deploy --project <project>  ·  exa workbench start nb1 --project <project>"
-        )
+        _output.hint("Next: exa pipeline deploy --project <project>")

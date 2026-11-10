@@ -5,11 +5,10 @@ module APIs, against a throwaway ``PLATFORM_DB``:
 
   P1  create a project, assign resources, add members (authz-backed)
   P2  attach a Named Connection (secret goes to the secrets client, only a ref in the DB)
-  P5  define a workbench and confirm it injects the project's connection env
   P4  record a model cost and confirm it is attributed to the project (FinOps + budget)
   P3  confirm the project resolves as the model's owning project (project_scope)
 
-This is the regression guard that the five increments stay wired together.
+This is the regression guard that the increments stay wired together.
 """
 
 from __future__ import annotations
@@ -34,7 +33,6 @@ def test_full_project_workspace_lifecycle(db, monkeypatch):
     import examlops.platform_db as pdb
     import examlops.project_finops as finops
     import examlops.project_scope as scope
-    import examlops.workbenches as workbenches
 
     # ── P1: create + resources + members ─────────────────────────────────────
     pdb.create_project("research", description="R&D", created_by="alice", cpu_limit=8, gpu_limit=1)
@@ -66,14 +64,6 @@ def test_full_project_workspace_lifecycle(db, monkeypatch):
     assert "s3cr3t-key" not in blob
     # The connection is also registered as a project resource (ADR 0086 wiring).
     assert "minio" in pdb.get_project_full("research")["resources"].get("connection", [])
-
-    # ── P5: workbench injects the project's connection env ───────────────────
-    workbenches.create_workbench("nb", "research", created_by="alice")
-    spec = workbenches.start_workbench("nb", "research", actor="alice")
-    assert spec["status"] == "RUNNING"
-    # connection_env exposes the connection's non-secret keys as EXA_CONN_* vars.
-    env_keys = list(spec["env"].keys())
-    assert any(k.startswith("EXA_CONN_MINIO") for k in env_keys), env_keys
 
     # ── P4: cost attribution + budget ────────────────────────────────────────
     # A model that belongs to research; cost auto-attributes to its project.

@@ -28,14 +28,3 @@ def test_result_is_frozen_and_typed():
 
     with_error = dataclasses.replace(r, ok=False, error="nope")
     assert with_error.to_dict() == {"ok": False, "error": "nope", "x": 1}
-
-
-def test_mcp_err_is_byte_identical_via_sdk():
-    """The MCP `_err` helper must produce the same dict it always did, now via sdk.err."""
-    from examlops.mcp.tools import _err
-
-    assert _err("CONTROL_PLANE_TOKEN not configured") == {
-        "ok": False,
-        "error": "CONTROL_PLANE_TOKEN not configured",
-    }
-    assert _err("unreachable", status=503) == {"ok": False, "error": "unreachable", "status": 503}

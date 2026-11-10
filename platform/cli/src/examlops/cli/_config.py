@@ -25,7 +25,6 @@ _FIELDS: list[tuple[str, str, str, str, bool]] = [
     ("mlflow_url", "mlflow", "MLFLOW_TRACKING_URI", "http://localhost:15000", False),
     ("prefect_url", "prefect", "PREFECT_API_URL", "http://localhost:14200", False),
     ("dashboard_url", "dashboard", "DASHBOARD_URL", "http://localhost:18099", False),
-    ("agent_url", "agent", "AGENT_URL", "http://localhost:18004", False),
     # The bridge is reached at the *host* port by anything running outside its container.
     # `exa seanerbus status` read a `seanerbus_bridge_url` attribute that no Config ever
     # had, and `exa production` hard-coded the address twice, so the variable the platform
@@ -39,7 +38,6 @@ _FIELDS: list[tuple[str, str, str, str, bool]] = [
     ),
     ("control_plane_token", "control_plane_token", "CONTROL_PLANE_TOKEN", "", True),
     ("dashboard_token", "dashboard_token", "DASHBOARD_TOKEN", "", True),
-    ("agent_token", "agent_token", "AGENT_API_KEY", "", True),
 ]
 
 _URL_KEYS = {
@@ -48,7 +46,6 @@ _URL_KEYS = {
     "mlflow",
     "prefect",
     "dashboard",
-    "agent",
     "seanerbus_bridge",
 }
 
@@ -63,11 +60,9 @@ class Config:
     mlflow_url: str = "http://localhost:15000"
     prefect_url: str = "http://localhost:14200"
     dashboard_url: str = "http://localhost:18099"
-    agent_url: str = "http://localhost:18004"
     seanerbus_bridge_url: str = "http://localhost:18003"
     control_plane_token: str = ""
     dashboard_token: str = ""
-    agent_token: str = ""
 
 
 def _read_raw() -> dict:
@@ -158,12 +153,6 @@ def active_project(raw: dict | None = None) -> str | None:
     if raw is None:
         raw = _read_raw()
     return raw.get("active_project")
-
-
-def scoped_agent_session(session_id: str, raw: dict | None = None) -> str:
-    """Namespace an agent checkpoint by the active ExaMLOps project."""
-    project = active_project(raw)
-    return f"{project}:{session_id}" if project else session_id
 
 
 def set_active_project(name: str | None) -> None:

@@ -53,7 +53,6 @@ const KNOWN_ROUTES = new Set([
   '/platform/providers',
   '/platform/config',
   '/platform/integrations',
-  '/platform/jupyter',
   '/platform/flags',
 ])
 

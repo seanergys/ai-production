@@ -651,7 +651,7 @@ async def onboard_model_view(
     principal: dict = Depends(_admin),
 ) -> dict:
     """Provision one project for a Zoo model — project · storage · MinIO connection · budget · model ·
-    workbench · pipeline surfaces (admin / project.manage; audited). Idempotent.
+    pipeline surfaces (admin / project.manage; audited). Idempotent.
 
     Body (optional): ``{dryRun: bool, connectionName: str, provisionConnection: bool}``. Runs the
     SAME ``examlops.modelzoo_adopt.adopt_model`` code path as the CLI/SDK; the MinIO secret is read

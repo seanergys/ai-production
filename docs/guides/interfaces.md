@@ -13,7 +13,6 @@ A map of every user-facing interface in the platform — browser UIs, REST APIs,
 | Ray Dashboard | http://localhost:18265 | none |
 | MinIO Console | http://localhost:19001 | minioadmin / minioadmin |
 | Control Plane API | http://localhost:18002 | bearer token |
-| JupyterHub | http://localhost:18888 | native username/password |
 | Grafana | http://localhost:13000 | monitoring profile |
 | Prometheus | http://localhost:19090 | monitoring profile |
 | Alertmanager | http://localhost:19093 | monitoring profile |
@@ -261,47 +260,6 @@ Raw metrics scrape target. Key metrics:
 | `examlops_approvals_pending` | — | Control Plane (Phase 13) |
 | `examlops_approval_events_total` | `model_id`, `action` | Control Plane (Phase 13) |
 | `examlops_approval_age_oldest_seconds` | — | Control Plane (Phase 13) |
-
----
-
-## JupyterHub
-
-**http://localhost:18888**
-
-Multi-user notebook environment. Start with `make jupyter-up`. Each user gets a dedicated JupyterLab container with access to internal services.
-
-```bash
-make jupyter-up                                    # build images + start
-make jupyter-add-user USER=alice HUB_TOKEN=<token> # add a user via Hub API
-make jupyter-down                                   # stop (user volumes preserved)
-```
-
-From a JupyterLab session you can reach MLflow, MinIO, Ray Serve, and the Control Plane by their internal hostnames (e.g., `http://mlflow:5000`). See [JupyterHub guide](jupyter.md) for full setup and user management.
-
----
-
-## Management Agent (CLI + HTTP)
-
-A conversational interface backed by LangGraph's ReAct loop. The LLM backend is chosen by which keys are set, in order: **Azure Foundry → Claude → Ollama**.
-
-```bash
-make skipper                                   # lower-level developer REPL
-make skipper-server                            # HTTP/WebSocket service on :18004
-exa chat                                       # canonical interactive client
-```
-
-The agent groups tools for registry, inference, metrics, training, approvals, ModelZoo, services,
-pipelines, documentation, and platform operations. Use natural language to inspect the platform,
-request controlled operations, or ask how things work. Mutating tools pause for explicit approval;
-named conversations persist across client runs (`exa chat --session <id>` or `/resume <id>`). See the
-[agent guide](agent.md) for the current tool surface, backends, client commands, and HTTP/WebSocket API.
-
-Example prompts:
-- *"What is the current production version of JPCP?"*
-- *"Run inference on JPCP with dummy features."*
-- *"Trigger a retrain of MACK using FDataDataset."*
-
-See [Agent guide](agent.md) for configuration and example sessions.
 
 ---
 

@@ -20,12 +20,6 @@ services:
   control-plane:
     build:
       network: default
-  agent:
-    build:
-      network: default
   dashboard:
-    build:
-      network: default
-  jupyterhub:
     build:
       network: default

@@ -146,13 +146,6 @@ GPU-hours (`hpc_jobs`) to show total/idle GPUs, utilization %, GPU-hours used, a
 (at `GPU_COST_PER_HOUR`). Energy/carbon accounting stays in `exa finops carbon` (the Green-AI
 provider substrate) rather than being duplicated here.
 
-**Agent / MCP access.** The fleet is agent-callable via MCP (`exa mcp serve`): read-only tools
-`hpc_clusters`, `hpc_nodes`, `hpc_place`, `hpc_jobs` are always exposed; the mutating
-`hpc_approve_cluster` is registered only when writes are enabled
-(`EXAMLOPS_MCP_ALLOW_WRITES=1` / `--allow-writes`) and still writes an audit event. So an
-agent can answer "which clusters are online, how many free GPUs, where should this job run?"
-while approval stays human-gated by default.
-
 ## Environment variables
 
 | Variable | Default | Purpose |

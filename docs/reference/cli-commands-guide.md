@@ -568,77 +568,9 @@ Runs text and agent tool calls through the guardrail engine (prompt-injection, P
 
 ## Agents & Automation
 
-The agentic surface: the conversational front door, the closed loop that acts on its own, the
-tools other agents call, and the analytics that say whether any of it is working. These commands
-were previously spread across four other panels — correct and complete, but with no title naming
-the category, which made the surface read as missing when it was not. `exa explain` deliberately
-stays under Getting Started: it introspects the command tree and calls no agent.
-
-### `exa chat` — hold a conversation with the agent
-
-The native interactive client for Skipper. It honours the active CLI context, checks that the agent
-and its model backend are ready, streams answers and tool activity, and preserves conversations by
-session ID. Use `exa ask` instead when you need a single scriptable answer.
-
-| Command | What it does | Use case | Example |
-|---|---|---|---|
-| `exa chat` | Starts a new native Skipper conversation using the agent URL from the active context. | A back-and-forth investigation where each answer changes the next question. | `exa chat`<br>`exa -c staging chat` |
-| `exa chat --session ID` | Opens or continues the named session. | Continue an incident or investigation across terminal runs. | `exa chat --session incident-42` |
-
-Inside the client, use `/help`, `/status`, `/sessions`, `/history`, `/new`, `/resume ID`,
-`/approve`, `/deny`, and `/quit`. Approval commands are available when a write tool pauses for
-human confirmation. The OpenAI-compatible endpoint remains available for optional third-party
-clients, but their extra commands are not part of the `exa chat` contract.
-
-`exa ask` returns the same opaque action ID when a one-shot request pauses. Continue only with the
-typed form `exa ask --session SESSION --approve ACTION_ID` (or `--deny`). Ordinary replies such as
-`yes` never authorize a write, and action IDs expire and cannot be replayed.
-
-### `exa agent` — is the agent up, and which brain is it using?
-
-Interrogates the running Skipper agent over the same HTTP surface `exa ask` uses, reporting what
-the **server** resolved — not what this machine's `.env` says, since the agent normally runs
-elsewhere. Exits non-zero when the agent is unreachable *or* when it is up but its LLM backend is
-unusable, so it works as a health gate: both states mean an answer cannot be trusted.
-
-This exists because a rejected Azure key once went unnoticed for a week — the agent kept
-answering, with empty strings, so it read as a weak model rather than a dead credential.
-
-| Command | What it does | Use case | Example |
-|---|---|---|---|
-| `exa agent status` | Reachability, LLM backend, model, and whether the long-term memory store actually attached. Prints the exact environment variable to repair when the backend is rejected. | First thing to run when the agent gives strange or empty answers — it separates "not running", "running with a dead key", and "running fine but with no long-term memory". | `exa agent status`<br>`exa --json agent status`<br>`exa -c lxp agent status` |
-| `exa agent memory stats` | Count the authenticated principal's remote memories by kind (`proc`, `episode`, `pref`, `kb`). | Verify what the currently selected agent identity owns before review or erasure. | `exa agent memory stats`<br>`exa --json agent memory stats` |
-| `exa agent memory list` | Enumerate one memory kind inside the server-verified principal and tenant namespace. | Review learned procedures or preferences without granting access to another caller's memory. | `exa agent memory list pref`<br>`exa agent memory list proc --limit 20` |
-| `exa agent memory export` | Export the authenticated owner's memory as JSON, to stdout or a file. | Fulfil a subject-access request or take a copy before erasure. Protect the resulting file as personal data. | `exa agent memory export --out memories.json` |
-| `exa agent memory delete` | Delete owned memories of one kind and write a `memory_erase` audit event under the verified principal. | The right-to-erasure control (ADR 0034). The retained audit record contains metadata/digests, not the deleted content. `--json` alone is not consent; add `--yes`. | `exa agent memory delete pref`<br>`exa --json --yes agent memory delete pref` |
-| `exa agent memory review` | List, approve, or reject queued procedure memories owned by the authenticated principal and tenant. Approvals and rejections are audited. | Batch-govern proposed durable procedures without accessing another principal's queue. | `exa agent memory review list`<br>`exa agent memory review approve 42`<br>`exa agent memory review reject 43 --reason incomplete` |
-
-Remote mode is the default and uses `AGENT_URL` plus the configured agent token. The server refuses
-memory administration when no API credential is configured. Add `--local` to a specific memory
-command only for offline migration or recovery against `AGENT_MEMORY_DB`; local mode does not
-provide the remote principal boundary.
-
-### `exa ask` — natural-language front door to Skipper
-
-Routes a plain-English question to the Skipper agent's OpenAI-compatible bridge. Great when you don't know which exact command to run.
-
-The answer **streams** at a terminal: tokens appear as the agent produces them, and each tool it calls is announced on its own dim line. That matters because the agent's tool loop runs before it writes anything, so without streaming a slow answer is silence followed by a wall of text — indistinguishable from a hang. Piped or `--json` output does not stream, because there the point is one parseable object; `--no-stream` forces that behaviour at a terminal too.
-
-| Command | What it does | Use case | Example |
-|---|---|---|---|
-| `exa ask "<question>"` | Sends a natural-language question to the Skipper agent and prints its answer as it arrives; `--session` keeps context across turns. | When you want an answer or an action described conversationally instead of hunting for the precise CLI command. | `exa ask "which models are drifting and why?"`<br>`exa ask "now retrain the worst one" --session mysession` |
-| `exa ask "<question>" --no-stream` | Waits for the complete answer and prints it in one go. | Logging a transcript, or any context where interleaved output is awkward. | `exa ask "summarise last week" --no-stream` |
-
-### `exa agentops` — agent trace & tool-call analytics
-
-Analytics over recorded agent sessions: per-tool reliability, a session index, timeline replay, and anomaly detection (reasoning loops, step blowups, cost overruns). All reads; tenant-filterable.
-
-| Command | What it does | Use case | Example |
-|---|---|---|---|
-| `exa agentops tools` | Per-tool success rate, call count, and average latency (R2), optionally by `--tenant`. | Find which agent tools are slow or failing across sessions. | `exa agentops tools --tenant acme` |
-| `exa agentops sessions` | Lists recent agent sessions with steps, cost, and status (R6 index). Options: `--tenant`, `--status ok\|anomaly\|error`, `--limit` (default 50). | Triage recent agent runs, e.g. only the ones that errored. | `exa agentops sessions --status anomaly --limit 20` |
-| `exa agentops replay` | Reconstructs a session's tool-call timeline (R6, GWT-5). Requires the session id. | Step through exactly what an agent did in one session while debugging. | `exa agentops replay sess-42` |
-| `exa agentops anomalies` | Detects reasoning loops, step blowups, and cost overruns in a session (R4, GWT-3/4). Requires the session id; `--cost-budget` USD threshold (default 1.0). | Flag a runaway or over-budget agent run for review. | `exa agentops anomalies sess-42 --cost-budget 2.0` |
+The automation surface: the closed loop that acts on its own.
+`exa explain` deliberately stays under Getting Started: it introspects the command tree and
+calls no agent.
 
 ### `exa autopilot` — self-driving MLOps closed loop
 
@@ -658,23 +590,6 @@ with `enabled_state="disabled"` so history never implies the loop was live. A re
 | `exa autopilot disable` | **[mutation]** Disable the autopilot kill-switch (persisted in `platform.db`). | Emergency stop for all autopilot activity. | `exa autopilot disable` |
 | `exa autopilot run [model]` | **[mutation]** Run one cycle: drift scan → policy → retrain → metrics → policy → promote. `--dry-run`, optional `model` to restrict. | Manually drive (or preview) one autopilot pass. | `exa autopilot run --dry-run` |
 | `exa autopilot status` | Show recent autopilot run history. `--last` (10). | Audit what the loop did and when. | `exa autopilot status --last 20` |
-
-### `exa mcp` — MCP server + Agent-to-Agent (A2A) surface
-
-Exposes ExaMLOps platform capabilities as agent-callable MCP tools/resources/prompts and an A2A Agent Card. Writes are off by default; enable mutating tools with `--allow-writes` or `EXAMLOPS_MCP_ALLOW_WRITES`.
-
-| Command | What it does | Use case | Example |
-|---|---|---|---|
-| `exa mcp tools` | Lists the tools exposed to agents over MCP; `--all` includes write tools even when writes are disabled. | Discover the agent-callable API surface | `exa mcp tools --all` |
-| `exa mcp capabilities` | Shows what the agent can do, **grouped by lifecycle use case** (management, monitoring, help, incident, finops, governance) with a write-tier badge (A=autopilot-OK, B=confirm-required, C=human-only); `--all` includes write tools. Derived from the same registry as `exa mcp tools` and the A2A card, so it can never drift. | Understand agent capabilities by use case | `exa mcp capabilities` |
-| `exa mcp resources` | Lists the MCP resources (readable context, e.g. `examlops://status`). | See what context agents can read | `exa mcp resources` |
-| `exa mcp prompts` | Lists the MCP prompts (reusable agent workflows, e.g. `diagnose_drift`). | Discover packaged agent workflows | `exa mcp prompts` |
-| `exa mcp agent-card` | Prints the A2A Agent Card describing this platform's agent skills; `--url` sets the public base URL, `--all` advertises mutating tools. | Publish an A2A discovery card | `exa mcp agent-card --url https://exa.example.com` |
-| `exa mcp serve` | Runs the MCP server so agents can drive ExaMLOps; `--transport`, `--host`, `--port`, `--allow-writes`. **(mutation, long-running, outward)** | Host the platform as an agent-callable server | `exa mcp serve --transport stdio` |
-
-The HTTP transport has no built-in authentication and therefore refuses non-loopback bind
-addresses. For remote clients, keep it on `127.0.0.1` and place an authenticated TLS reverse proxy
-in front of it. Enabling write tools does not bypass this restriction.
 
 ## Monitoring & Quality
 
@@ -754,11 +669,7 @@ Runs deterministic eval suites, ingests delayed ground-truth labels to compute r
 | `exa eval feedback ingest` | **[mutation]** Ingest delayed ground-truth label(s), keyed by prediction `request_hash`. `--request-hash/-r`, `--label/-l`, `--source/-s` (manual), or `--from-csv`. | Feed observed outcomes back for accuracy scoring. | `exa eval feedback ingest --request-hash hash-1 --label 88.5` |
 | `exa eval feedback accuracy <model>` | Compute live accuracy (RMSE/MAE) from labelled predictions — real quality. `--alias/-a`, `--record` persists to `live_metrics`. | Report true production accuracy, not a proxy. | `exa eval feedback accuracy JPCP --alias Production` |
 | `exa eval feedback join <model>` | Show prediction/label pairs joined on `request_hash` (delayed-label join). `--alias/-a`. | Inspect which predictions have labels yet. | `exa eval feedback join JPCP --alias Production` |
-| `exa eval operator-qa` | Ask the agent a fixed set of operator questions and report the pass rate. Grading is **deterministic** (does the answer name the right command), so no judge model and no judge calibration are involved. Exits non-zero if the agent is unreachable, so an unanswerable run cannot be mistaken for a bad score. `--category`, `--out` (JSONL, feeds `exa eval run`), `--agent-url`, `--timeout`. `--record` persists the rate to the eval store, exactly as `cli-coverage` does. | Measure whether the agent can answer what a new operator actually asks — before pointing anyone at it. | `exa eval operator-qa --category serving` |
-| `exa eval cli-coverage` | Samples commands from the whole CLI surface and asks the agent which one fits each hand-written use case, reporting how often it names the right one. Same deterministic grading as `operator-qa`; questions whose text would name a command are excluded and counted, and every miss is reported with its reason (`named-another-real-command` = the question was ambiguous; `named-no-real-command` = the agent was wrong). `--sample/-n` (0 = all), `--seed`, `--with-description/-d`, `--out`, `--agent-url`, `--timeout`, `--concurrency/-j` (questions in flight at once; the full pool asked one at a time takes over an hour), `--record` (persist the rate — the two question modes record as two suites), `--agent-model`. Also reports `flagValidity`: an answer that names the right command but an invented flag still fails when pasted. | Track agent quality once the 30-question suite is saturated — a pool of every usable row (366 at v0.49.0) has headroom where a fixed 30 does not. | `exa eval cli-coverage --sample 120 --seed 11` |
 | `exa eval history` | Prints what the eval suites recorded for a model or agent — suite, **the backend that answered**, metric, score, sample size and run id, newest first. `--suite`, `--metric`, `--limit`. | See whether a number moved: the eval store had a writer and no reader, so a recorded score could not be compared with the one before it. | `exa eval history skipper --suite cli-coverage` |
-| `exa eval grounding` | Asks the agent about live platform state and checks the answers against the truth read from the same source, sorting each into `grounded` / `abstained` / `fabricated`. Abstaining is not a failure — on a half-running platform it is the correct answer; the number to watch is `fabricated`, and the only acceptable value is zero. `--record`, `--out`, `--agent-url`, `--timeout`, `--agent-model`. | Catch the failure the other agent suites cannot see: a fluent, specific, wrong answer about this installation. | `exa eval grounding --record` |
-| `exa eval safety` | Asks the agent to perform mutating actions and checks the bridge's `hitl_required` and `trace` fields rather than its prose, sorting each into `held` (interrupted for a human) / `declined` (no write tool ran) / `executed` (a write ran with no interrupt — the defect). `--record`, `--out`, `--agent-url`, `--timeout`, `--agent-model`. | Prove the write gate before trusting an agent that can retrain models, move production traffic and stop services. | `exa eval safety --record` |
 | `exa eval gate run <model> <candidate>` | Run the regression gate for a candidate version (exit 1 in block mode on failure) — CI-safe (R10). `--higher-is-better`/`--lower-is-better`. | Block promotion of a regressing candidate in CI. | `exa eval gate run JPCP 18` |
 | `exa eval gate set <model>` | **[mutation]** Configure the regression gate. Required `--suite`, `--metric metric[:min=X][:max=Y][:max_drop=Z][:higher_is_better=false]` (repeatable); `--baseline` (Production), `--mode block\|warn`, `--higher-is-better\|--lower-is-better` (the gate's own direction; undeclared means it borrows the caller's). `max` is a direction-independent ceiling; the per-metric `higher_is_better` lets one gate cover a suite whose scores point both ways. | Declare which metrics guard a model's promotions. | `exa eval gate set JPCP --suite agent-safety --metric answer_rate:min=0.95 --metric unsafe_rate:max=0.05:higher_is_better=false --mode block` |
 | `exa eval gate show <model>` | Show the configured regression gate for a model. | Verify gate config before a release. | `exa eval gate show JPCP` |
@@ -1030,18 +941,6 @@ Reusable, optionally project-scoped data connections (S3 / URI / dataplane). Non
 | `exa connection show` | Shows one connection's config + secret presence (never the value); `--project` scopes | Inspect a connection before use | `exa connection show minio --project research` |
 | `exa connection test` | Read-only reachability probe (exit 1 on failure; never prints secrets) | CI/pre-run check that a source is reachable | `exa connection test minio --project research` |
 | `exa connection delete` | Deletes a connection (referenced secret left intact); `--yes` skips confirmation. **Mutation.** | Retire an unused data source | `exa connection delete minio --project research --yes` |
-
-### `exa workbench` — project workbenches (on-demand dev environments, P5)
-
-Per-project dev environments (JupyterLab-style). Definitions are metadata (`STOPPED` until started); `start` records intent and prints the launch spec (image, volume, injected connection env) — the actual pod spawn is delegated to the runtime.
-
-| Command | What it does | Use case | Example |
-|---|---|---|---|
-| `exa workbench create` | Defines a workbench in a project (`--project` required, `--image`, `--cpu`, `--memory-gb`); starts STOPPED. **Mutation.** | Declare a reproducible dev environment | `exa workbench create nb --project research --image jupyter/scipy-notebook --cpu 2 --memory-gb 8` |
-| `exa workbench list` | Lists workbenches; `--project` filters | See a project's dev environments | `exa workbench list --project research` |
-| `exa workbench start` | Marks the workbench RUNNING and prints its launch spec (image, volume, injected env). **Mutation.** | Bring up a dev environment | `exa workbench start nb --project research` |
-| `exa workbench stop` | Marks the workbench STOPPED. **Mutation.** | Tear a dev environment down | `exa workbench stop nb --project research` |
-| `exa workbench delete` | Deletes the workbench definition; `--yes` skips confirmation. **Mutation.** | Remove an unused environment | `exa workbench delete nb --project research --yes` |
 
 ## Platform & Integrations
 

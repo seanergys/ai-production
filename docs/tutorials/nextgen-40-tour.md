@@ -82,7 +82,7 @@ exa eval gate run JPCP <candidate>        # exit 1 on regression → CI gate
 exa slo set JPCP accuracy --target 0.9         # MODEL NAME + target
 ```
 
-→ Guides: [Evaluation](../guides/evaluation.md) · [SLOs](../guides/slos.md) · [AgentOps](../guides/agentops.md)
+→ Guides: [Evaluation](../guides/evaluation.md) · [SLOs](../guides/slos.md)
 
 ## 6. Govern every change (D3/D4/D5)
 

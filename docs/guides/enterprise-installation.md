@@ -53,7 +53,6 @@ curl -s http://localhost:18099/api/health     # dashboard
 ### Optional profiles (add capabilities)
 ```bash
 make monitoring-up     # Prometheus + Alertmanager + Tempo + Grafana + Loki + Promtail
-make jupyter-up        # JupyterHub (per-project workbenches) on :18888
 make control-plane-up  # retrain API on :18002 (needs CONTROL_PLANE_TOKEN)
 make full-up           # stack + monitoring + SeanerBUS bridge (needs the seanerbus repo + network)
 ```
@@ -208,7 +207,7 @@ partial Helm chart and a turnkey, HA, multi-tenant cluster install:
    signed container images** (a registry + a release job) and a **published Helm chart / wheels** so a
    cluster pulls immutable, versioned artifacts. *(Add an image-build+push CI job; the packages are
    already wheel-buildable via setuptools, just not distributed.)*
-2. **Complete the Helm chart.** Add the missing tiers (MLflow, Prefect, Ray Serve, MinIO, JupyterHub),
+2. **Complete the Helm chart.** Add the missing tiers (MLflow, Prefect, Ray Serve, MinIO),
    `NetworkPolicy`, `ServiceMonitor`/`PrometheusRule`, agent HPA/PDB, and either bundle the stateful
    services as subcharts (Postgres/Redis operators) or ship an **umbrella chart** so the data
    layer isn't fully bring-your-own. Bump `appVersion` to match code.

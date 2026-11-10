@@ -360,9 +360,7 @@ test:infra:helm:
     - changes:
         - platform/infra/helm/**/*
         - tests/unit/test_helm_chart.py
-        - tests/unit/test_helm_agent_scaling.py
         - tests/unit/test_helm_secret_scoping.py
-        - tests/unit/test_dashboard_agent_credentials.py
         - .gitlab-ci.yml
       when: on_success
     - when: never
@@ -381,14 +379,11 @@ test:infra:helm:
     - python3 -m venv /tmp/venv
     - /tmp/venv/bin/pip install --quiet pytest pyyaml prometheus_client httpx typer
     - make helm-validate
-    # All four helm-gated files. test_helm_agent_scaling, test_helm_secret_scoping and the
-    # helm case in test_dashboard_agent_credentials skip without a helm binary, and this is the
-    # only job that has one. test_gitlab_ci_valid.py keeps this list complete.
+    # All helm-gated files. test_helm_secret_scoping skips without a helm binary, and this is
+    # the only job that has one. test_gitlab_ci_valid.py keeps this list complete.
     - /tmp/venv/bin/python -m pytest
         tests/unit/test_helm_chart.py
-        tests/unit/test_helm_agent_scaling.py
         tests/unit/test_helm_secret_scoping.py
-        tests/unit/test_dashboard_agent_credentials.py
         tests/unit/test_dockerfile_build_context.py -q
     - make helm-package
 
@@ -547,52 +542,6 @@ test:postgres:
 # Blocking gate: a failure here fails the pipeline and blocks deploy. Runs on
 # every main push and tag (full-suite policy) plus any branch/MR touching
 # serving/ or tests/integration/.
-# ── Skipper agent ─────────────────────────────────────────────────────────────
-# The agent's 206 tests ran in neither `make check` nor any pipeline until now: the
-# root `test` target is `pytest tests/`, and the suite lives under
-# platform/services/agent/tests. A change to skipper/ could break all of them with
-# every gate green — the worst place for that to be true, since an agent's regressions
-# are the hardest kind to notice by using it.
-#
-# Its own job rather than folding it into test:examlops, because it needs eleven
-# LangChain/LangGraph packages the root [dev] extras deliberately do not carry. For the
-# same reason it declares NO cache: the shared `uv-$CI_COMMIT_REF_SLUG` key holds the
-# .venv every other job pulls, and pushing a langchain-laden one into it would slow
-# them all down for nothing.
-test:agent:
-  stage: test
-  image: python:3.12-slim
-  interruptible: true
-  needs: [sanity:python-syntax, sanity:check-structure]
-  rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH   # main → full suite, gates deploy
-      when: on_success
-    - if: $CI_COMMIT_TAG                            # tags → release gate
-      when: on_success
-    - changes:
-        - platform/services/agent/**/*
-        - .gitlab-ci.yml
-      when: on_success
-    - when: never
-  timeout: 15 minutes
-  before_script:
-    - pip install --quiet --upgrade pip uv
-    - uv venv --clear .venv
-    # requirements.txt is the pinned source of truth for the agent's dependencies;
-    # pytest-asyncio is a test-only dep the service itself does not need.
-    - uv pip install -r platform/services/agent/requirements.txt
-    - uv pip install pytest pytest-asyncio
-    # the tests import `examlops` (platform_db, audit, vector store) the way the agent does
-    - uv pip install -e platform/cli
-  script:
-    - .venv/bin/pytest platform/services/agent/tests -v --tb=short
-        --junit-xml=reports/agent-unit.xml
-  artifacts:
-    reports:
-      junit: reports/agent-unit.xml
-    when: always
-    expire_in: 7 days
-
 test:control-plane:
   stage: test
   image: python:3.12-slim
@@ -613,7 +562,7 @@ test:control-plane:
   # webhooks, model metadata — ran in no pipeline and no local gate until 2026-08-20, and had
   # rotted to the point of not collecting (`ModuleNotFoundError: model_meta`). The service runs
   # with its own directory as cwd, so its tests need it on sys.path; tests/conftest.py now does
-  # that, the same way platform/services/agent/tests/conftest.py does.
+  # that.
   before_script:
     - pip install --quiet --upgrade pip uv
     - uv venv --clear .venv
@@ -830,7 +779,6 @@ build:images:
     - job: test:infra:helm
     - job: test:docs
     - job: test:integration
-    - job: test:agent
     - job: test:frontend
     - job: test:control-plane
     - job: test:postgres
@@ -860,11 +808,9 @@ build:images:
           - orchestrator
           - ray-serving
           - control-plane
-          - agent
           - prometheus
           - grafana
           - dashboard
-          - jupyterhub
           - backup
   before_script:
     - apk add --no-cache bash python3
@@ -1144,7 +1090,6 @@ release:gitlab:
     - job: test:infra:helm
     - job: test:docs
     - job: test:integration
-    - job: test:agent
     - job: test:frontend
     - job: test:control-plane
     - job: test:postgres
@@ -1199,7 +1144,6 @@ deploy:lxp:
     - job: test:infra:helm
     - job: test:docs
     - job: test:integration
-    - job: test:agent
     - job: test:frontend
     - job: test:control-plane
     - job: test:postgres

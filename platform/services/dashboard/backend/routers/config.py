@@ -51,8 +51,6 @@ URL_KEYS: frozenset[str] = frozenset(
         "seanerbus_default_model",
         "seanerbus_default_alias",
         "seanerbus_bridge_status_url",
-        # JupyterHub
-        "jupyterhub_url",
     }
 )
 SECRET_KEYS: frozenset[str] = frozenset(

@@ -14,10 +14,6 @@ const STEPS: { title: string; body: string }[] = [
     body: 'Press ⌘K (or Ctrl-K) for the command palette — jump to any model, job, or page and copy the equivalent exa command.',
   },
   {
-    title: 'Ask the copilot',
-    body: 'Use the Copilot to ask grounded questions and get suggested exa commands. It proposes; you run.',
-  },
-  {
     title: 'Make it yours',
     body: 'Set your default landing page, theme, language, and pin the models you care about in Preferences. Press ? any time for help.',
   },

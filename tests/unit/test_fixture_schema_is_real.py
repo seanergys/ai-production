@@ -322,7 +322,7 @@ def test_no_dashboard_fixture_builds_its_own_schema():
     Calling ``platform_db.init_db()`` removes the whole class, because there is then only one
     definition. For the few tables ``init_db()`` deliberately does not own — ``connections`` and
     ``workbenches``, each created by its own module on first write — seed through that module's
-    own API (see ``test_connections_workbenches.py``), which is also the only way the secret
+    own API (see ``test_connections.py``), which is also the only way the secret
     takes its real indirection.
     """
     dashboard = _REPO / "platform" / "services" / "dashboard" / "backend" / "tests"

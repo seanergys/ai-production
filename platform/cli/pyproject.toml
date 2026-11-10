@@ -35,11 +35,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Agent-native surface: expose `exa` capabilities to LLM agents / MCP clients.
-# Lazily imported by `examlops.mcp.server`; the core CLI works without it.
-mcp = [
-    "fastmcp>=3.4",
-]
 # Statistical A/B analysis (`exa serve ab analyze`). Lazily imported by
 # examlops.analysis.ab_stats; the rest of the CLI works without it.
 analysis = [

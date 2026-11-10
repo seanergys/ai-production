@@ -53,10 +53,6 @@ graph TB
         DashFE["React 19 Frontend"]
     end
 
-    subgraph Notebooks["JupyterHub :18888"]
-        Hub["JupyterHub\nNativeAuthenticator"]
-        Lab["Per-User JupyterLab\n(DockerSpawner)"]
-    end
 
     subgraph Monitoring["Monitoring"]
         Prom["Prometheus :19090"]
@@ -84,28 +80,11 @@ graph TB
     GitHub -- "push webhook\nPOST /webhooks/modelzoo/github" --> CP
     CP -- "freshness\nGET /modelzoo/status" --> DashBE
     GitLab -- "GitLab API v4" --> DashBE
-    Hub -- "spawns" --> Lab
-    Lab -- "MLflow SDK" --> MLflow
-    Lab -- "S3 / boto3" --> MinIO
-    Lab -- "REST" --> Ray
-    Lab -- "REST" --> CP
     DashBE -- "proxy /predict" --> Ray
     DashBE -- "proxy /status" --> BridgeStat
     Ray -- "metrics" --> Prom
     CP -- "metrics" --> Prom
     Prom --> Grafana
-
-    subgraph Agent["Skipper — Management Agent (CLI + HTTP · specialist tool packs)"]
-        AgentCLI["LangGraph ReAct Agent\n(make skipper · Azure/Claude/Ollama LLM)\nconfirm-before-write · SQLite memory"]
-    end
-
-    AgentCLI -- "registry tools\n/ajax-api/2.0/mlflow/..." --> MLflow
-    AgentCLI -- "inference tools\nPOST /predict, /infer-pipeline" --> Ray
-    AgentCLI -- "metrics tools\n/api/v1/query" --> Prom
-    AgentCLI -- "training/approvals/modelzoo\nPOST /retrain, /approve, ..." --> CP
-    AgentCLI -- "services + pipelines/scaffold\nauthenticated DashboardClient" --> DashBE
-    AgentCLI -- "docs/knowledge tools\nsearch/read public docs" --> Docs[("docs/")]
-    AgentCLI -- "platform_ops tools\ndiff, lineage, drift, audit, traffic, promote" --> PlatDB[("platform.db\nSQLite")]
 ```
 
 ## Inference Request Flow
@@ -329,7 +308,6 @@ All host-exposed ports use a **+10000 offset** from their canonical defaults. In
 | Service | Host Port | Internal Port | Notes |
 |---|---|---|---|
 | Dashboard | 18099 | 8099 | React + FastAPI |
-| JupyterHub | 18888 | 8888 | Multi-user notebooks |
 | Ray Serve API | 18001 | 8001 | Inference + reload |
 | Control Plane | 18002 | 8002 | `POST /retrain` (bearer auth); `GET /metrics` (no auth) |
 | SeanerBUS Bridge Status | 18003 | 8003 | `GET /health` `GET /stats` `GET /metrics` (no auth) |
@@ -369,7 +347,6 @@ All host-exposed ports use a **+10000 offset** from their canonical defaults. In
 - **Typed SDK** (`examlops/sdk/`) — a small, semver'd public facade (`examlops.status/place/list_providers/resolve_provider` + `__version__`/`api_version()`); the CLI and MCP tools call *through* it, so there is one code path. Anything not exported is `_private`.
 - **Extension registry** (`examlops.providers`, ADR 0077) — a swappable calculation provider per *domain* (cost, carbon, **placement**; drift/promotion next), authored as a built-in, an `exa.providers.<domain>` entry-point plugin, or a sandboxed `providers.yaml` formula. Placement (`hpc_placement_providers.py`) injects a resolved scorer into `choose_cluster`; default `least-loaded` is byte-identical to the legacy `headroom_score`.
 - **Policy-as-code** (`examlops/policy/`, ADR 0079) — declarative `policy.yaml` rules (`action` + optional sandboxed `when` + `effect`) evaluated by `policy.decide()` before every mutation; each decision audited to `audit_events`. `exa retrain` and the mutating MCP tools consult it; no file ⇒ `allow` (backward compatible).
-- **Agent-callable** (`examlops.mcp`, ADR 0082) — the MCP tools reuse the SDK code paths; mutating tools pass the `agent_write` policy (least privilege) beyond the `EXAMLOPS_MCP_ALLOW_WRITES` switch.
 - **Trust tiers** (ADR 0081) — T1 trusted plugin (arbitrary code, install-time trust) · T2 sandboxed `simpleeval` expression (no imports/attrs/I/O) · T3 gated mutation (read-only default + policy + audit). Full design in `design/adr/0076`–`0082`; guide `docs/guides/programmable-mlops.md`.
 
 **Control plane sits in front of Prefect** — clients and the dataplane never hold Prefect credentials directly. The control plane validates the request against `MODEL_REGISTRY` before scheduling a flow run, and the bearer-token gate on `POST /retrain` fails closed (503) when no token is configured.

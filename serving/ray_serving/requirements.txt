@@ -1,5 +1,7 @@
 mlflow==3.11.1
 ray[serve]==2.55.0
+# <7: ray 2.55.0 reads protobuf's FieldDescriptor.label, removed in protobuf 7 (serve.start fails).
+protobuf>=4.25,<7
 # <0.137: ray 2.55.0 @serve.ingress cloudpickles the FastAPI app; fastapi>=0.137 adds an
 # unpicklable _thread.lock and breaks serve startup at import. 0.136.x is verified-compatible.
 fastapi>=0.100.0,<0.137

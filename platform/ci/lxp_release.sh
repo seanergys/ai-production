@@ -145,7 +145,7 @@ activate_release() {
     export EXAMLOPS_STATE_DIR="$STATE_ROOT"
     export PLATFORM_DB="$STATE_ROOT/platform.db"
     export EXAMLOPS_PROVIDERS_DIR="$STATE_ROOT/.providers"
-    export PATH="$HOME/.local/bin:/localhome/${USER}/.local/bin:$PATH"
+    export PATH="$HOME/.local/bin:/localhome/${USER:-$(id -un)}/.local/bin:$PATH"
 
     cd "$release_path"
 

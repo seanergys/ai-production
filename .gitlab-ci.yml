@@ -411,6 +411,9 @@ test:examlops:
     # die on FileNotFoundError. They had therefore never run in CI at all. Measured on
     # pipeline #3241 (2026-08-25): 13 failed in this job and 13 in test:postgres, the same 13.
     - apt-get update -qq && apt-get install -y -qq --no-install-recommends git make
+    # Branch pipelines fetch no tags, and test_release_notes_are_extractable checks every
+    # vNN.NN.NN tag's notes (and fails, by design, when there are none to check).
+    - git fetch --tags --force --quiet origin
     - pip install --quiet --upgrade pip uv
     - uv venv --clear .venv   # --clear: runners reuse build dirs; a leftover .venv otherwise fails
     - uv pip install -e ".[dev]"
@@ -509,6 +512,9 @@ test:postgres:
     # die on FileNotFoundError. They had therefore never run in CI at all. Measured on
     # pipeline #3241 (2026-08-25): 13 failed in this job and 13 in test:postgres, the same 13.
     - apt-get update -qq && apt-get install -y -qq --no-install-recommends git make
+    # Branch pipelines fetch no tags, and test_release_notes_are_extractable checks every
+    # vNN.NN.NN tag's notes (and fails, by design, when there are none to check).
+    - git fetch --tags --force --quiet origin
     - pip install --quiet --upgrade pip uv
     - uv venv --clear .venv
     - uv pip install -e ".[dev]"

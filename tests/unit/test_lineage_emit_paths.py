@@ -13,6 +13,7 @@ scheduler job id is the training flow — so the facet and its one real producer
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -162,8 +163,20 @@ def test_retrain_lineage_is_fail_open(monkeypatch):
 # ── clause 1: the training flow ───────────────────────────────────────────────
 
 
+def _skip_without_modelzoo() -> None:
+    """`pipeline_generator` imports the use-case pack, which needs the upstream model library.
+
+    CI has no `modelzoo/` checkout (ADR 0094), so these tests skip there — like every other
+    modelzoo-dependent test — and run wherever `make modelzoo` has fetched it.
+    """
+    mz = Path(os.environ.get("EXAMLOPS_MODELZOO_DIR") or Path(__file__).parents[2] / "modelzoo")
+    if not (mz / "seanergys_modelzoo").is_dir():
+        pytest.skip("needs the upstream modelzoo checkout (`make modelzoo`); not present in CI")
+
+
 @pytest.fixture
 def training():
+    _skip_without_modelzoo()
     import pipeline_generator
 
     return pipeline_generator._emit_training_lineage

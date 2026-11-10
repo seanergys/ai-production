@@ -47,7 +47,10 @@ if "seanerbus" not in sys.modules:
     sys.modules["seanerbus"] = sb_client
     sys.modules["seanerbus.client"] = sb_client.client
 
-# httpx — always overwrite so our stub is in place when bridge is reloaded
+# httpx stub — bound onto the bridge module only (see after the import below). It must NOT go
+# into sys.modules: this file is imported at collection time, so a global stub replaced the
+# real httpx for every test collected after it (`cannot import name 'Request' from 'httpx'`,
+# and a MagicMock Timeout leaking into examlops.resilience).
 httpx_stub = types.ModuleType("httpx")
 httpx_stub.HTTPError = Exception
 
@@ -65,7 +68,6 @@ httpx_stub.AsyncClient = MagicMock()
 httpx_stub.Timeout = MagicMock()  # used by the shared examlops.resilience timeout helper
 httpx_stub.RequestError = Exception
 httpx_stub.ConnectError = Exception
-sys.modules["httpx"] = httpx_stub
 
 # seanerbus_msgs — define concrete stub classes so isinstance checks work
 msgs_stub = types.ModuleType("seanerbus_msgs")
@@ -149,6 +151,18 @@ bridge.RetrainResV1 = _RetrainResV1  # type: ignore[attr-defined]
 # Also patch the schema registry instance to our mock (in case the bridge was
 # previously loaded with a real or different registry).
 bridge._schema_registry = _MockRegistry()  # type: ignore[attr-defined]
+
+# The bridge's own `httpx` name points at the stub, so these tests control its client and
+# exceptions without touching the real library anyone else imports.
+bridge.httpx = httpx_stub  # type: ignore[attr-defined]
+
+# Telemetry writes default to no-ops, which is what these tests always ran against: the global
+# httpx stub used to make the bridge's `examlops.platform_db` import fail, so it fell back to
+# no-op writers. Tests that check the writes override these with monkeypatch.
+bridge.write_drift_snapshot = lambda *a, **k: None  # type: ignore[attr-defined]
+bridge.write_input_snapshot = lambda *a, **k: None  # type: ignore[attr-defined]
+bridge.write_audit_event = lambda *a, **k: None  # type: ignore[attr-defined]
+bridge.get_input_baseline = lambda *a, **k: None  # type: ignore[attr-defined]
 
 # ── 3. Pop model_schema_registry so it doesn't shadow the real one for later tests
 sys.modules.pop("model_schema_registry", None)

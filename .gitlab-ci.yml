@@ -527,7 +527,9 @@ test:postgres:
     # truncate-based isolation fixture. Sharing one schema would let them race.
     - EXAMLOPS_POSTGRES_SCHEMA=exa_ci .venv/bin/pytest tests/unit/ -q --tb=short
         --junit-xml=reports/postgres-unit.xml
-    - .venv/bin/pip install -r platform/services/dashboard/backend/requirements.txt -q
+    # `uv venv` creates no pip inside .venv, so `.venv/bin/pip` does not exist; install with
+    # uv into the same venv, like every other install in this job.
+    - uv pip install --quiet --python .venv/bin/python -r platform/services/dashboard/backend/requirements.txt
     - cd platform/services/dashboard/backend &&
       EXAMLOPS_POSTGRES_SCHEMA=exa_ci_dash
       EXAMLOPS_DOCS_ROOT="$CI_PROJECT_DIR"

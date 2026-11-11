@@ -88,23 +88,6 @@ def test_a_rejected_alternative_is_not_a_broken_promise(reconciler, tmp_path, mo
     )
 
 
-def test_adr_0034_erasure_surface_is_reachable_from_the_cli():
-    """The specific promise that went unbuilt: a person can erase what the agent remembers.
-
-    Asserted against the CLI tree rather than the source, because ADR 0034's promise is
-    about what an operator can *run*, not about a function existing somewhere.
-    """
-    exa = ROOT / ".venv" / "bin" / "exa"
-    if not exa.exists():  # pragma: no cover - depends on the local install
-        pytest.skip("the exa CLI is not installed in this environment")
-    out = subprocess.run(
-        [str(exa), "agent", "memory", "--help"], capture_output=True, text=True, timeout=120
-    )
-    assert out.returncode == 0, out.stderr
-    for verb in ("stats", "list", "export", "delete"):
-        assert verb in out.stdout, f"`exa agent memory {verb}` is missing: {out.stdout}"
-
-
 def test_the_reconciler_runs_as_a_command(rows):
     """It has to be usable by a person, not only by this test file."""
     out = subprocess.run(

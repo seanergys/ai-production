@@ -17,7 +17,6 @@ from examlops.data.projects import (
     list_project_models,
 )
 from examlops.platform_db import get_db, init_db
-from examlops.workbenches import get_workbench
 
 
 @pytest.fixture(autouse=True)
@@ -50,7 +49,6 @@ def test_adopt_model_provisions_everything():
     assert get_project_storage("jpcp") is not None
     assert get_project_budget("jpcp") is not None
     assert "JPCP" in list_project_models("jpcp")
-    assert get_workbench(mz.WORKBENCH_NAME, "jpcp") is not None
     # both pipeline surfaces registered
     with get_db() as conn:
         rows = conn.execute("SELECT kind FROM project_pipelines WHERE project='jpcp'").fetchall()
@@ -66,7 +64,7 @@ def test_adopt_is_idempotent():
     mz.adopt_model("JPCP")
     out2 = mz.adopt_model("JPCP")
     assert out2["changed"] is False
-    assert out2["steps"]["project"] == "exists" and out2["steps"]["workbench"] == "exists"
+    assert out2["steps"]["project"] == "exists" and out2["steps"]["pipelines"] == "exists"
     # no second audit row for an unchanged re-run
     with get_db() as conn:
         audits = conn.execute(

@@ -99,7 +99,6 @@ async def test_health_contains_all_services(client):
         "postgres",
         "loki",
         "seanerbus",
-        "jupyterhub",
         "dashboard",
         "slurm",
         "seanerbus_sim",

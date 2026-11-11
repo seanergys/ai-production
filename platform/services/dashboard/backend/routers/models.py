@@ -9,7 +9,7 @@ import uuid
 import httpx
 from auth import require_role
 from control_plane_client import ControlPlaneClient
-from database import get_db
+from database import AsyncSessionLocal, get_db
 from dbconn import connect
 from external_links import LinkInputs, build_links
 from fastapi import APIRouter, Body, Depends, File, HTTPException, Response, UploadFile, status
@@ -21,12 +21,21 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from storage import ImageStorage
 
+from routers.config import get_control_plane_token
+
 router = APIRouter(prefix="/models")
+
+
+async def _control_plane_token() -> str | None:
+    async with AsyncSessionLocal() as db:
+        return await get_control_plane_token(db)
 
 
 def _control_plane() -> ControlPlaneClient:
     """Module-level factory so tests can monkeypatch this with a fake."""
-    return ControlPlaneClient(base_url=settings.control_plane_url)
+    return ControlPlaneClient(
+        base_url=settings.control_plane_url, token_provider=_control_plane_token
+    )
 
 
 # Short-lived cache so a hard browser refresh (which clears the client cache and

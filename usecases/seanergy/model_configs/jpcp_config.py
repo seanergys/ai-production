@@ -13,6 +13,8 @@ from pathlib import Path
 from typing import ClassVar
 
 import numpy as np
+import pandas as pd
+from sklearn.preprocessing import LabelEncoder
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _MODELZOO = Path(os.environ.get("EXAMLOPS_MODELZOO_DIR") or _REPO_ROOT / "modelzoo")
@@ -26,6 +28,9 @@ from seanergys_modelzoo.models.tasks.power_consumption_prediction.jpcp.jpcp_mode
     JPCP,
     Embedding,
 )
+
+# PM100 input columns that are label-encoded into ``<col>_cat`` features.
+_PM100_CATEGORICAL = ("num_nodes_req", "user_id")
 
 
 class JPCPConfiguration:
@@ -42,11 +47,33 @@ class JPCPConfiguration:
     def resolve_embedding_type(cls, value: str) -> Embedding:
         return Embedding[value]
 
+    @staticmethod
+    def _pm100_label_encoder(model: JPCP):
+        """DataFrame → DataFrame step adding the ``*_cat`` input columns for PM100.
+
+        Dataset preprocessing passes a DataFrame, while ``JPCP.transform_embeddings`` takes
+        a numpy array, so the encoding is done here — the same way upstream's own
+        ``JPCP.get_train_config`` does it. The fitted encoders are stored on the model so
+        they travel with it through save/load.
+        """
+
+        def _encode(df: pd.DataFrame) -> pd.DataFrame:
+            df = df.copy()
+            encoders = []
+            for col in _PM100_CATEGORICAL:
+                le = LabelEncoder()
+                df[f"{col}_cat"] = le.fit_transform(df[col].astype(str))
+                encoders.append(le)
+            model.embedder = encoders
+            return df
+
+        return _encode
+
     @classmethod
     def get_transforms(cls, model: JPCP, dataset_cls: type) -> dict:
         if dataset_cls is PM100Dataset:
             return {
-                "preprocessing_functions": [model.transform_embeddings],
+                "preprocessing_functions": [cls._pm100_label_encoder(model)],
                 "target_transform": lambda f: np.mean(f[0]) / f[1],
             }
         if dataset_cls is FDataDataset:

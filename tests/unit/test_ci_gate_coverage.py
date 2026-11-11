@@ -41,7 +41,6 @@ _PREFLIGHT_MIRROR: dict[str, str | None] = {
     "sanity:secret-scan": "sanity: secret scan",
     "test:examlops": "unit tests",
     "test:integration": "integration tests",
-    "test:agent": "skipper agent tests",
     "test:frontend": "dashboard frontend",
     "test:control-plane": "control plane",
     "test:postgres": "postgres backend",

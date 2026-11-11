@@ -72,9 +72,7 @@ nav:
       - SeanerBUS Bridge: guides/seanerbus.md
       - SeanerBUS Setup (real bus): guides/seanerbus-sim.md
       - SeanerBUS Architecture: guides/seanerbus-architecture.md
-      - Management Agent: guides/agent.md
       - CI/CD — GitLab Pipeline: guides/cicd.md
-      - JupyterHub Notebooks: guides/jupyter.md
       - Enterprise Installation & Configuration: guides/enterprise-installation.md
       - Production Hardening Checklist: guides/production-hardening.md
       - Backup, Restore & Disaster Recovery: guides/backup-restore.md
@@ -83,7 +81,6 @@ nav:
   - Tutorials:
       - A Tour of Next-Gen 40: tutorials/nextgen-40-tour.md
       - Set up a Project from the Dashboard: tutorials/dashboard-project-setup.md
-      - Skipper Long-Term Memory: tutorials/skipper-memory.md
       - Anomaly Detection E2E: tutorials/demoanomaly-e2e-demo.md
   - Next-Gen 40:
       - Data & reproducibility:
@@ -105,7 +102,6 @@ nav:
           - Structured output & reasoning: guides/structured-output-reasoning.md
       - Observability & evaluation:
           - GenAI observability (OTel semconv): guides/genai-observability.md
-          - AgentOps: guides/agentops.md
           - Evaluation & regression gates: guides/evaluation.md
           - Judge calibration (ADR 0111): guides/judge-calibration.md
           - Advanced drift: guides/drift-advanced.md
@@ -168,7 +164,6 @@ nav:
           - Command palette & global search: guides/dashboard-command-palette.md
           - Data grid & bulk operations: guides/dashboard-data-grid.md
           - Visualization system: guides/dashboard-visualization.md
-          - Embedded copilot: guides/dashboard-copilot.md
           - Collaboration & workflow: guides/dashboard-collaboration.md
           - Personalization & onboarding: guides/dashboard-personalization.md
           - Feature flags & staged rollout: guides/dashboard-feature-flags.md

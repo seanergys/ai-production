@@ -27,106 +27,6 @@ Enqueue a work item (durable; drained under the global + per-tenant caps).
 - `--project` — Project attribution
 - `--priority` — Higher runs first within a tenant
 
-## `exa agent`
-
-Skipper agent — health, backend and memory
-
-### `exa agent memory`
-
-Govern authenticated, owner-scoped agent memory (ADR 0034)
-
-#### `exa agent memory delete`
-
-Erase memories, cascading to derived ones. Audited to ``audit_events``.
-
-The immutable audit log is a separate store and is deliberately *not* erased — ADR 0034
-keeps the record that an erasure happened while removing what was remembered.
-
-- `--scope` — Limit erasure to one scope (e.g. an operator)
-- `--operator` — Local-mode audit actor (remote mode uses verified principal)
-- `--local` — Erase AGENT_MEMORY_DB on this machine
-
-#### `exa agent memory export`
-
-Export authenticated owner-scoped memory as JSON.
-
-- `--out` — Write JSON here instead of stdout
-- `--local` — Read AGENT_MEMORY_DB on this machine
-
-#### `exa agent memory list`
-
-Enumerate owner-scoped memories of one kind.
-
-- `--scope` — Task-class / model / operator scope
-- `--limit` — Maximum items to show
-- `--local` — Read AGENT_MEMORY_DB on this machine
-
-#### `exa agent memory review`
-
-List, approve, or reject queued procedure memories
-
-##### `exa agent memory review approve`
-
-Approve one queued procedure memory.
-
-- `--local` — Update the local review database
-
-##### `exa agent memory review list`
-
-List pending procedure reviews for the authenticated owner.
-
-- `--local` — Read the local review database
-
-##### `exa agent memory review reject`
-
-Reject one queued procedure memory.
-
-- `--reason` — Reason recorded with the rejection
-- `--local` — Update the local review database
-
-#### `exa agent memory stats`
-
-Summarise memory owned by the authenticated principal and tenant.
-
-- `--local` — Read AGENT_MEMORY_DB on this machine
-
-### `exa agent status`
-
-Show the agent's reachability, LLM backend, model and memory tier.
-
-Exits non-zero when the agent is unreachable *or* when it is up but its backend is
-unusable. Both mean "do not trust an answer from this agent", which is the question a
-script is really asking, and collapsing them into one exit code is what makes this
-usable as a health gate.
-
-## `exa agentops`
-
-AgentOps — agent trace & tool-call analytics
-
-### `exa agentops anomalies`
-
-Detect reasoning loops, step blowups, and cost overruns (R4, GWT-3/4).
-
-- `--cost-budget` — USD budget for overrun check
-
-### `exa agentops replay`
-
-Reconstruct a session's tool-call timeline (R6, GWT-5).
-
-### `exa agentops sessions`
-
-List recent agent sessions with steps, cost, and status (R6 index).
-
-- `--tenant` — Filter to one tenant
-- `--status` — ok | anomaly | error
-- `--limit` — Max sessions (newest first)
-
-### `exa agentops tools`
-
-Per-tool success rate, call count, and average latency (R2).
-
-- `--tenant` — Filter to one tenant (D6)
-
 ## `exa approvals`
 
 Sysadmin approval gate
@@ -154,15 +54,6 @@ Reject a pending model change — no training will run.
 
 - `--reason, -r` — Rejection reason
 - `--dry-run` — Show what would be rejected without changing anything
-
-## `exa ask`
-
-Ask the Skipper agent a question in natural language.
-
-- `--session, -s` — Session id to preserve conversational context (default: isolated one-shot)
-- `--stream` — Print the answer as it is generated (default: on at a terminal, off when piped)
-- `--approve` — Approve one pending action in this session
-- `--deny` — Deny one pending action in this session
 
 ## `exa assets`
 
@@ -401,13 +292,6 @@ Build a structured model card from live data — gaps as 'not provided' (R3/R4).
 - `--tenant` — Tenant scope (D6)
 - `--out` — Write the card Markdown to this file
 - `--save` — Persist a versioned card
-
-## `exa chat`
-
-Interactive conversation with the Skipper agent
-
-- `--session, -s` — Server-side conversation ID to create or resume
-- `--stream` — Stream answer tokens as they arrive
 
 ## `exa compliance`
 
@@ -867,28 +751,6 @@ Show a judge's latest calibration and whether it may gate.
 
 - `--version` — Pin to a judge version
 
-### `exa eval cli-coverage`
-
-Ask the agent about commands sampled from the whole CLI surface and report the rate.
-
-`exa eval operator-qa` asks 30 curated questions; once the agent scores 30/30 that suite can
-no longer measure anything. This one draws its questions from the hand-written **Use case**
-column of `docs/reference/cli-commands-guide.md`, which covers every command, so the number
-says something about the CLI rather than about 30 chosen corners. Grading is the same
-deterministic "did the answer name the command" — necessary, not sufficient — so no judge
-model is involved. Rows whose use case names an `exa` command are excluded and counted,
-because a question that leaks its own answer measures nothing.
-
-- `--sample, -n` — Commands to ask about; 0 = every usable one
-- `--seed` — Sampling seed, so two runs are comparable
-- `--with-description, -d` — Also give the guide's 'what it does' cell (easier: it paraphrases the command)
-- `--out` — Write the answers as JSONL
-- `--agent-url` — Agent bridge base URL (default: configured agent_url)
-- `--timeout` — Per-question timeout in seconds
-- `--concurrency, -j` — Questions in flight at once (1 = strictly serial)
-- `--record` — Persist the rate to the eval store so runs are comparable
-- `--agent-model` — Label the recorded run belongs to
-
 ### `exa eval feedback`
 
 Ground-truth feedback loop
@@ -940,26 +802,6 @@ Configure the regression gate for a model.
 
 Show the configured gate for a model.
 
-### `exa eval grounding`
-
-Ask about live platform state and check the answers against the truth.
-
-`exa eval operator-qa` and `exa eval cli-coverage` measure what the agent *says* — whether it
-names the right command, and whether the flags it names exist. Neither can see the failure
-that matters most on a platform an operator trusts: a fluent, specific, **wrong** answer about
-live state.
-
-Answers are sorted into `grounded`, `abstained` and `fabricated`. Abstaining is **not** a
-failure — on a half-running platform it is the correct answer, and a suite that scored it as a
-miss would be training the agent to guess. The number to watch is `fabricated`, and the only
-acceptable value is zero.
-
-- `--out` — Write the answers as JSONL
-- `--agent-url` — Agent bridge base URL (default: configured agent_url)
-- `--timeout` — Per-question timeout in seconds
-- `--record` — Persist the result to the eval store
-- `--agent-model` — Label the recorded run belongs to
-
 ### `exa eval history`
 
 Show what the eval suites recorded, newest first.
@@ -973,22 +815,6 @@ nothing to compare against, so a regression is invisible by construction.
 - `--metric` — Only this metric
 - `--limit` — Most recent rows to show
 
-### `exa eval operator-qa`
-
-Ask the agent a fixed set of operator questions and report the pass rate.
-
-Measures whether the agent can answer what a new operator actually asks. Grading is
-deterministic (does the answer name the right command), so no judge model is involved and
-no judge calibration is required. Exits non-zero if the agent is unreachable, so an
-unanswerable run can never be mistaken for a bad score.
-
-- `--category` — Only questions in this category
-- `--out` — Write the answers as JSONL (feeds `exa eval run`)
-- `--agent-url` — Agent bridge base URL (default: configured agent_url)
-- `--timeout` — Per-question timeout in seconds
-- `--record` — Persist the rate to the eval store so runs are comparable
-- `--agent-model` — Label the recorded run belongs to
-
 ### `exa eval run`
 
 Run a deterministic eval suite over items and persist scores (exit != 0 on error only).
@@ -1000,27 +826,6 @@ Run a deterministic eval suite over items and persist scores (exit != 0 on error
 - `--sample` — Sample N items by request_hash
 - `--dataset-revision` — A1 revision
 - `--run-id` — Idempotency key (default: derived)
-
-### `exa eval safety`
-
-Ask the agent to change things it must not change on its own, and see what it does.
-
-The other agent suites ask whether it is *right*. This one asks whether it is *safe*, using
-the two machine-readable fields the bridge already returns — `hitl_required` (the graph
-interrupted and is waiting for a human) and `trace` (the tools it actually called) — rather
-than reading its prose. An agent that *says* it refused and calls the tool anyway would score
-as safe under any prose check, which is exactly the failure worth catching.
-
-`held` and `declined` are both safe outcomes, but for different reasons: only `held` is
-evidence that the human-in-the-loop gate worked. An agent that never reached a write tool —
-because the backing service was down — declines everything, which says no write happened, not
-that the gate held. `executed` is the defect.
-
-- `--out` — Write the answers as JSONL
-- `--agent-url` — Agent bridge base URL (default: configured agent_url)
-- `--timeout` — Per-request timeout in seconds
-- `--record` — Persist the result to the eval store
-- `--agent-model` — Label the recorded run belongs to
 
 ## `exa events`
 
@@ -1674,46 +1479,6 @@ Sysadmin: reject a cluster (blocks scheduling; auditable).
 
 - `--reason, -r` — Why the cluster is rejected
 
-## `exa mcp`
-
-MCP server + Agent-to-Agent (A2A) surface
-
-### `exa mcp agent-card`
-
-Print the A2A Agent Card describing this platform's agent skills.
-
-- `--url` — Public base URL where this agent is reachable
-- `--all` — Advertise mutating tools in the card
-
-### `exa mcp capabilities`
-
-Show what the agent can do, grouped by lifecycle use case (management, monitoring, …).
-
-- `--all` — Include mutating (write) tools even if writes are disabled
-
-### `exa mcp prompts`
-
-List the MCP prompts (reusable agent workflows) ExaMLOps ships.
-
-### `exa mcp resources`
-
-List the MCP resources (readable context) ExaMLOps exposes to agents.
-
-### `exa mcp serve`
-
-Run the MCP server so agents can drive ExaMLOps.
-
-- `--transport` — Transport for the MCP server
-- `--host` — Bind host (http transport)
-- `--port` — Bind port (http transport)
-- `--allow-writes` — Register mutating tools (retrain). Off by default.
-
-### `exa mcp tools`
-
-List the tools ExaMLOps exposes to agents over MCP.
-
-- `--all` — Include mutating (write) tools even if writes are disabled
-
 ## `exa models`
 
 MLflow model registry
@@ -1841,7 +1606,7 @@ ModelZoo repository freshness and events
 
 ### `exa modelzoo adopt`
 
-Provision one project per model (storage · MinIO connection · budget · workbench · pipelines).
+Provision one project per model (storage · MinIO connection · budget · pipelines).
 Idempotent.
 
 Wires each model its own project with a bound per-project MinIO/S3 connection (endpoint/keys from
@@ -3074,41 +2839,3 @@ Upsert a single vector (rejected if dim mismatches the collection).
 - `--vector` — JSON array of floats
 - `--meta` — JSON metadata object
 - `--tenant` — Tenant namespace
-
-## `exa workbench`
-
-Project Workbenches — on-demand dev environments (P5)
-
-### `exa workbench create`
-
-Define a workbench in a project (status STOPPED until started).
-
-- `--project, -p` — Owning project (required)
-- `--image` — Container image
-- `--cpu` — CPU cores
-- `--memory-gb` — RAM in GB
-
-### `exa workbench delete`
-
-Delete a workbench definition.
-
-- `--project, -p` — Owning project
-- `--yes, -y` — Skip confirmation
-
-### `exa workbench list`
-
-List workbenches.
-
-- `--project, -p` — Filter by project
-
-### `exa workbench start`
-
-Start a workbench — marks it RUNNING and prints its launch spec (image, volume, injected env).
-
-- `--project, -p` — Owning project
-
-### `exa workbench stop`
-
-Stop a workbench (marks STOPPED).
-
-- `--project, -p` — Owning project

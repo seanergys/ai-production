@@ -95,6 +95,9 @@ mlflow.db
 *.db-shm
 *.db-journal
 .data_cache/
+
+# Upstream model library — fetched by `make modelzoo`, never committed here (ADR 0094).
+/modelzoo/
 slurm_jobs/
 flux_jobs/
 # Authored calculation providers — runtime data (ADR 0074)

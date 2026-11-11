@@ -14,10 +14,7 @@ capnp_stub.load = lambda *a, **kw: types.ModuleType("capnp_schema")
 capnp_stub.run = lambda coro: coro
 sys.modules.setdefault("capnp", capnp_stub)
 
-httpx_stub = types.ModuleType("httpx")
-httpx_stub.HTTPError = Exception
-httpx_stub.AsyncClient = object
-sys.modules.setdefault("httpx", httpx_stub)
+# httpx is a real dependency of the platform — no stub (a global one leaked into later tests).
 
 msgs_stub = types.ModuleType("seanerbus_msgs")
 

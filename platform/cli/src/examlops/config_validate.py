@@ -45,7 +45,7 @@ def validate(env: Mapping[str, str]) -> list[Finding]:
         out.append(Finding("warn", k, m))
 
     # URL-shaped settings must parse.
-    for key in ("CONTROL_PLANE_URL", "RAY_SERVE_URL", "MLFLOW_TRACKING_URI", "AGENT_URL"):
+    for key in ("CONTROL_PLANE_URL", "RAY_SERVE_URL", "MLFLOW_TRACKING_URI"):
         v = env.get(key)
         if v and not _is_url(v):
             err(key, f"not a valid URL: {v!r}")

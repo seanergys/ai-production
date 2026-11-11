@@ -31,13 +31,12 @@ to tune for a slow/unreliable environment.
 | `EXAMLOPS_TASK_MLFLOW_TIMEOUT_S` | `600` | `timeout_seconds` for the MLflow logging task |
 | `EXAMLOPS_TASK_FETCH_TIMEOUT_S` | `300` | `timeout_seconds` for result-fetch / promote tasks |
 | `EXAMLOPS_TASK_SUBMIT_TIMEOUT_S` | `300` | `timeout_seconds` for the Slurm submit task |
-| `AGENT_DB` | `./agent_memory.db` | Skipper checkpointer SQLite path (resolved to absolute; WAL + busy_timeout applied) |
 
 Docker Compose memory ceilings (OOM isolation) are also env-overridable:
 `RAY_MEM_LIMIT` (`6g`), `RAY_CPUS` (`2.0`), `MLFLOW_MEM_LIMIT` (`2g`),
 `ORCHESTRATOR_MEM_LIMIT` (`2g`), `POSTGRES_MEM_LIMIT` (`1g`),
 `CONTROL_PLANE_MEM_LIMIT` (`512m`), `DASHBOARD_MEM_LIMIT` (`1g`),
-`JUPYTERHUB_MEM_LIMIT` (`2g`), `BRIDGE_MEM_LIMIT` (`1g`).
+`BRIDGE_MEM_LIMIT` (`1g`).
 
 ---
 
@@ -67,7 +66,6 @@ the usual cause of "it works from the CLI but not in the dashboard".
 | `EXAMLOPS_CONFIG` | `~/.config/examlops/config.toml` | Overrides the CLI config path so containers and CI can pin a config and tests run hermetically. |
 | `EXAMLOPS_PROJECT` | active CLI context or `default` | Explicit project/tenant context for CLI commands and trusted server-side agent scoping. Request callers cannot override an authenticated agent tenant with payload data. |
 | `EXAMLOPS_USECASE_DIR` | `usecases/seanergy` | Selects the use-case pack (ADR 0094). The platform core names no concrete model or dataset; this is how it reaches content. |
-| `EXAMLOPS_AGENT_DIR` | derived from the repo | Where the Skipper package lives for explicit `exa agent memory … --local` recovery. Normal memory administration uses `AGENT_URL`. |
 | `EXAMLOPS_PROJECTS_BUCKET` | `examlops-projects` | MinIO bucket holding per-project `artifacts/`, `datasets/`, `cache/`. |
 
 ### Governance & secrets
@@ -166,31 +164,6 @@ Defaults are in the module header of `platform/services/control_plane/app.py`.
 
 ---
 
-## Agent (Skipper) — server, checkpointing & review queue
-
-!!! warning "Authenticate deliberate network exposure"
-
-    The server defaults to loopback. If you bind another interface, configure distinct principals
-    with `AGENT_API_KEYS_JSON` (or the legacy `AGENT_API_KEY`) and put the endpoint behind TLS.
-    Memory administration always requires a configured credential. The built-in browser exchanges
-    its key for an HttpOnly, same-site session cookie.
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `AGENT_SERVER_HOST` | `127.0.0.1` | Interface the agent server binds. See the warning above. |
-| `AGENT_CHECKPOINT_BACKEND` | `sqlite` | Conversation checkpoint store. `postgres` uses `AGENT_POSTGRES_DSN`, then `DATABASE_URL` — and **selecting `postgres` with neither set falls back to `sqlite`** rather than failing, so check the startup log if checkpoints are not where you expect. |
-| `AGENT_POSTGRES_DSN` | falls back to `DATABASE_URL` | DSN for the Postgres checkpointer. |
-| `AGENT_GRAPH_TIMEOUT` | `300.0` | Seconds one LangGraph run may take before it is abandoned. |
-| `AGENT_STREAM_IDLE_TIMEOUT` | `120.0` | Seconds of silence on a streaming response before it is closed. |
-| `AGENT_TURN_LEASE_SECONDS` | `AGENT_GRAPH_TIMEOUT + 30` (minimum) | Renewable cross-replica lease for one active turn per authenticated session. A smaller configured value is raised to the timeout-derived minimum. |
-| `AGENT_ACTION_SIGNING_KEY` | falls back to `CONTROL_PLANE_TOKEN` or configured agent credentials | Server-only key for signed, owner-bound HITL action IDs and browser sessions. Configure an independent random key in production. |
-| `AGENT_ACTION_TTL_SECONDS` | `600` | Lifetime of a typed approve/deny action ID. Expired IDs cannot resume a mutation. |
-| `AGENT_BROWSER_SESSION_TTL_SECONDS` | `28800` | Lifetime in seconds of the HttpOnly browser session cookie issued after agent authentication. |
-| `AGENT_MEMORY_REVIEW_QUEUE` | `false` | Queue memory writes for human review instead of applying them. |
-| `AGENT_MEMORY_REVIEW_DB` | `./skipper_review.db` | Where that review queue lives — separate from `AGENT_MEMORY_DB`. |
-
----
-
 ## Local LLM serving (vLLM)
 
 `exa serve llm` starts an OpenAI-compatible vLLM server, either through Compose or on an HPC
@@ -216,15 +189,12 @@ server process — you name the weights with `--hf-model`, not by exporting them
 
 ---
 
-## CLI, agent surface & config contexts
+## CLI & config contexts
 
-Variables read by the `exa` CLI's next-gen surface (MCP/A2A, `exa ask`, config contexts).
+Variables read by the `exa` CLI for config contexts.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `EXAMLOPS_MCP_ALLOW_WRITES` | unset (read-only) | When truthy (`1`/`true`/`yes`/`on`), `exa mcp serve` registers mutating tools (e.g. `trigger_retrain`). Equivalent to `exa mcp serve --allow-writes`. |
-| `AGENT_URL` | `http://localhost:18004` | Skipper agent OpenAI-compatible bridge that `exa ask` calls. Also settable via `exa config set agent <url>`. |
-| `AGENT_API_KEY` | unset | Bearer token sent by `exa ask` when the agent bridge is token-gated. |
 | `EXAMLOPS_CONTEXT` | unset | Selects a named config context for the invocation (same effect as `exa -c <name>` / `exa config use <name>`, without persisting). Resolution order: env var → active context → config file → default. |
 
 The `exa` CLI also honours the standard endpoint/token vars (`CONTROL_PLANE_URL`, `MLFLOW_TRACKING_URI`, `RAY_SERVE_URL`, `PREFECT_API_URL`, `DASHBOARD_URL`, `CONTROL_PLANE_TOKEN`), which a config context or `~/.config/examlops/config.toml` can override. Inspect the effective values and their source with `exa env`.
@@ -255,6 +225,7 @@ All additive and **graceful-degrading** — unset means the local/pure-python fa
 | `EXAMLOPS_DATASET_REVISION` | unset | **A1** pin a pipeline run to a recorded dataset revision (set by `exa pipeline run --dataset-revision`). |
 | `EXAMLOPS_DATA_CONTRACT_GATE` | `enforce` | **A5** training-gate mode (ADR 0005 clause 2): `enforce` fails the run closed on an error-severity contract violation, `warn` records it and continues, `off` skips. An unrecognised value falls back to `enforce` — a typo must not quietly disable a gate that fails closed by design. Dummy runs and datasets with no contract are skipped with a recorded reason. |
 | `EXAMLOPS_ASSET_ORCHESTRATOR` | `local` | **A4** which engine materializes an asset (ADR 0036): `local` runs the production function in-process, `scheduler` submits it through the phase-23 HPC seam. An unrecognised value falls back to `local` — a typo must leave the asset built, not route it to an engine nobody configured. Override per run with `exa assets materialize --orchestrator`. |
+| `EXAMLOPS_PROMPT_GATE_LABELS` | `prod` | **B1** comma-separated prompt labels whose moves are gated by the C3 eval regression check (ADR 0009 clause 4). Gating `dev`/`staging` too would deadlock the registry — the gate reads its baseline from a labelled version. |
 | `EXAMLOPS_REINDEX_ORCHESTRATOR` | `inline` | **A6** where a blue-green reindex runs (ADR 0043 clause 4): `inline` in the calling process, `scheduler` submits it through the phase-23 HPC seam (the case the clause names — large corpora). An unrecognised value falls back to `inline`; an unreachable scheduler falls back too and records `inline-fallback`. Override per run with `exa embedding reindex --scheduler` / `--inline`. |
 | `EXAMLOPS_INFERENCE_EMBEDDING_DIM` | unset | **A5** inference-gate embedding width. When set, a request whose embedding is the wrong length is refused with 422. Never defaulted — an embedding width is a fact about a use case, not a platform constant. |
 | `EXAMLOPS_OPENLINEAGE_URL` | unset (no-op) | **A2** OpenLineage — Marquez endpoint; unset ⇒ `emit_lineage` skips HTTP but still dual-writes `platform_db`. |
@@ -333,6 +304,7 @@ The scheduler backend and its transport are independent. `EXAMLOPS_SLURM_MODE` a
 | Variable | Default | Purpose |
 |---|---|---|
 | `EXAMLOPS_DATA_BUCKET` | `examlops-data` | S3/MinIO bucket consulted by `MinIOBackend` |
+| `DATAPLANE_URL` | `http://localhost:8010` | Base URL of the HPC dataplane REST API (or its simulator) polled by the `dataplane` dataset backend. |
 | `EXAMLOPS_DATA_S3_ENDPOINT` | unset | Dedicated endpoint for the **dataset** object store (e.g. the SEANERGYS Day-0 store on JSC S3), separate from the platform MinIO holding MLflow artifacts/models. Unset ⇒ the minio dataset backend falls back to `MLFLOW_S3_ENDPOINT_URL` (single shared instance, legacy behaviour). |
 | `EXAMLOPS_DATA_S3_ACCESS_KEY` / `EXAMLOPS_DATA_S3_SECRET_KEY` | unset | Credentials for the dedicated dataset store. Unset ⇒ fall back to `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`. |
 
@@ -352,6 +324,7 @@ Selection is per-pipeline-run via `--backend` CLI flag or `backend_name` Prefect
 | `RAY_RELOAD_POLL_SECONDS` | `60` | Background MLflow alias-poll interval in seconds; `0` disables polling |
 | `RAY_SERVE_RELOAD_URL` | unset | Ray Serve URL for the Prefect promotion webhook (`POST /reload/{model_id}`); unset disables the webhook |
 | `RAY_METRICS_EXPORT_PORT` | `8080` | Prometheus metrics export port used by Ray |
+| `TRAFFIC_RULES_TTL_SECONDS` | `30` | How long the inference pipeline caches a model's traffic split (`exa serve traffic`) before re-reading it from the platform DB. A change made from another process takes effect within this many seconds. |
 
 ---
 
@@ -396,10 +369,12 @@ Selection is per-pipeline-run via `--backend` CLI flag or `backend_name` Prefect
 | `DASHBOARD_SECRET_KEY` | **required** | Fernet key (base64-encoded, 44 characters) for secrets-at-rest encryption |
 | `DASHBOARD_JWT_TTL_HOURS` | `12` | JWT token expiry in hours |
 | `DASHBOARD_PORT` | `8099` | Dashboard HTTP port (host-exposed as `18099`) |
+| `DASHBOARD_TRUSTED_PROXY` | unset | Truthy (`1`/`true`/`yes`/`on`) when a reverse proxy sits in front of the dashboard: the rate limiter then keys on the client address from `X-Forwarded-For`. Leave unset without a proxy — the header is client-forgeable. |
 | `GITLAB_URL` | `https://gitlab.com` | GitLab base URL for ModelZoo repository integration |
 | `GITLAB_TOKEN` | unset | GitLab PAT with `read_repository` scope; used by the Datasets and Models pages to list files from the modelzoo repo. Also used as a last-resort fallback for the "Run CI Pipeline" button when no DB or env trigger token is configured. |
 | `GITLAB_PROJECT_ID` | unset | ModelZoo project ID; used by the Datasets/Models pages. Also used by the "Run CI Pipeline" fallback path when `AI_PROD_GITLAB_PROJECT_ID` is absent. |
 | `GITLAB_BRANCH` | `main` | Branch consulted by the ModelZoo stats router |
+| `DASHBOARD_GITLAB_INSECURE_TLS` | unset (TLS verified) | Truthy (`1`/`true`/`yes`/`on`) turns off TLS certificate checks for the dashboard's GitLab calls. Only for a self-signed on-prem GitLab whose CA cannot be installed — a `PRIVATE-TOKEN` travels on these requests. |
 | `DATABASE_URL` | `postgresql+asyncpg://mlops:mlops@postgres/mlflow` | Postgres connection string for dashboard metadata |
 | `AI_PROD_PIPELINE_TRIGGER_TOKEN` | unset | GitLab pipeline trigger token for the ai-production project. When set, "Run CI Pipeline" on the Datasets page uses this token to fire the ai-production pipeline (which runs `test:modelzoo`). Takes priority over the `GITLAB_TOKEN` PAT fallback. |
 | `AI_PROD_GITLAB_PROJECT_ID` | unset | ai-production project ID (e.g. `88`). Used together with `AI_PROD_PIPELINE_TRIGGER_TOKEN` for the "Run CI Pipeline" fallback. |
@@ -440,123 +415,6 @@ The bridge (`platform/clients/seanerbus_bridge.py`) connects to the real SeanerB
 | `DRIFT_WINDOW` | `50` | Rolling-window length for the bridge drift tracker |
 | `DRIFT_THRESHOLD` | `0.5` | Per-model error-rate threshold that fires `/trigger-retrain` |
 | `DRIFT_COOLDOWN` | `300` | Minimum seconds between drift-triggered retrains per model |
-
----
-
-## Management Agent
-
-The LangGraph agent (`platform/services/agent/`) runs as a developer REPL with `make skipper` or as
-the HTTP/WebSocket service with `make skipper-server` (`skipper.server`, port 18004). The LLM backend
-is chosen by which keys are set, in order: **Azure Foundry → Claude → Ollama**. When using
-`ollama-tunnel` (Omega server, port 11436), start the tunnel first. Vars are set in `.env` and sourced
-automatically.
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `AZURE_OPENAI_API_KEY` | unset | Azure OpenAI / AI Foundry key. With `AZURE_OPENAI_ENDPOINT` set, this backend is preferred over Claude/Ollama. |
-| `AZURE_OPENAI_ENDPOINT` | unset | Foundry v1 endpoint base URL (`https://<resource>.services.ai.azure.com/openai/v1/`, OpenAI-compatible). |
-| `AZURE_OPENAI_DEPLOYMENT` | `gpt-5.5` | Foundry deployment name, used as the model id. |
-| `ANTHROPIC_API_KEY` | unset | Claude backend key. Used when Azure is not configured. |
-| `ANTHROPIC_MODEL` | `claude-opus-4-8` | Claude model id (adaptive thinking, `max_tokens=16000`). |
-| `AGENT_MODEL` | `llama3.1:8b` | Ollama model name (fallback). Via ollama-tunnel: any model from the Omega/Kapa list. Must support tool calling. |
-| `AGENT_OLLAMA_URL` | `http://localhost:11436` | Ollama server base URL. Omega tunnel default. Use `localhost:11434` for a local `ollama serve`. |
-| `AGENT_CONTAINER_OLLAMA_URL` | `http://host.docker.internal:11436` | Compose-only Ollama URL. This avoids treating the agent container's own loopback as the host's Ollama server. |
-| `AGENT_OLLAMA_KEEP_ALIVE` | `30m` | Pins the Ollama model in memory between turns (avoids reload latency on CPU-only servers). |
-| `AGENT_OLLAMA_REASONING` | `false` | Disable (`false`) / force (`true`) / leave-default (`default`) thinking models' extra reasoning tokens. |
-| `AGENT_SERVER_PORT` | `18004` | Port for the HTTP/WebSocket chat server (`skipper.server`). |
-| `AGENT_API_KEY` | unset | Legacy single credential protecting completions, status, history, and WebSocket tools. It remains the dashboard fallback and maps to the `primary` principal. Prefer distinct caller credentials in `AGENT_API_KEYS_JSON`. |
-| `AGENT_API_KEYS_JSON` | unset | JSON object mapping trusted principal names to distinct bearer credentials, for example `{"dashboard":"<dashboard-key>","cli-operator":"<cli-key>"}`. Names become server-derived conversation and memory owners; callers cannot choose them. Use distinct credentials wherever memory isolation matters. |
-| `DASHBOARD_AGENT_API_KEY` | unset | Dashboard BFF credential forwarded to the agent. Its value must appear under the `dashboard` principal (or another intentionally named dashboard principal) in `AGENT_API_KEYS_JSON`. The dashboard prefers this over legacy `AGENT_API_KEY`. |
-| `AGENT_REQUIRE_API_KEY` | `false` | Refuse agent-server startup when no API key is configured. The Helm deployment sets this to `true`. |
-| `PROMETHEUS_URL` | `http://localhost:19090` | Prometheus endpoint for the `get_metrics` tool |
-| `RAY_SERVE_URL` | `http://localhost:18001` | Ray Serve endpoint for the `predict` / inference tools |
-| `AGENT_DB` | `./agent_memory.db` | SQLite file backing the LangGraph checkpointer — conversations persist here and are resumable by thread id (`/resume`) |
-| `AGENT_DOCS_ROOT` | `<repo>/docs` | Root directory the docs/knowledge tools (`search_docs`, `read_doc`, `list_docs`) search and read |
-| `AGENT_HTTP_TIMEOUT` | `10.0` | Per-request timeout (seconds) for the agent's HTTP tool calls |
-| `DASHBOARD_URL` | `http://localhost:18099` | Dashboard base URL used by the service-control and pipeline/scaffold tools |
-| `DASHBOARD_ADMIN_PASSWORD` | unset | Admin password the agent's `DashboardClient` logs in with; unset ⇒ the dashboard-backed tools (service control, pipelines, scaffold) return an actionable error and the rest of the agent is unaffected |
-
-### Long-term memory (Phase 25)
-
-Cross-session memory for the agent (procedures / incidents / preferences / KB). All additive — if the store or embedding backend is unavailable the agent runs with short-term memory only. See `docs/guides/agent.md` (Long-Term Memory) and ADR 0033/0034.
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `AGENT_MEMORY_ENABLED` | `true` | Master switch for long-term memory. `false` ⇒ short-term (conversation) memory only. |
-| `AGENT_MEMORY_DB` | `./skipper_memory.db` | Server-side SQLite file for the long-term `SqliteStore` (separate from `AGENT_DB` and `platform.db`). `exa agent memory` accesses it remotely by default; `--local` opts into direct file recovery. |
-| `AGENT_EMBED_BACKEND` | `ollama` | Local embedding backend: `ollama` (via `AGENT_OLLAMA_URL`) or `sentence-transformers` (fully offline, in-process). No cloud. |
-| `AGENT_EMBED_MODEL` | `nomic-embed-text` | Embedding model name. Must match `AGENT_EMBED_DIMS`. |
-| `AGENT_EMBED_DIMS` | `768` | Embedding dimension. Must match the model (nomic-embed-text=768, bge-m3=1024, all-MiniLM-L6-v2=384). Mismatch ⇒ logged + long-term memory disabled. |
-| `AGENT_SUMMARIZE_ENABLED` | `false` | Enable the context-trimming middleware for long threads (langchain-core `trim_messages`). |
-| `AGENT_MAX_CONTEXT_TOKENS` | `12000` | Token budget for the trim hook when enabled. |
-| `AGENT_MEMORY_REQUIRE_CONFIRM` | `true` | Confirmation-gate durable `record_procedure` writes (HITL). |
-| `AGENT_MEMORY_AUDIT` | `true` | Write every memory mutation to `platform_db.audit_events`. |
-| `AGENT_PROC_DEPRECATE_THRESHOLD` | `0.5` | (Phase 7, ADR 0106) Success rate below which a tool is "failing"; procedures relying on it are deprecated by `skipper.consolidate`. |
-| `AGENT_PROC_DEPRECATE_MIN_CALLS` | `3` | Minimum recorded calls before a tool's success rate is trusted for deprecation. |
-| `AGENT_CONSOLIDATE_MIN_EPISODES` | `3` | Incidents per model before consolidation promotes a candidate procedure to the HITL review queue. |
-| `AGENT_MEMORY_TENANT_SCOPED` | `false` | Enables legacy environment-derived tenant prefixes for local/background memory operations. Authenticated HTTP requests are always isolated by their verified principal and server tenant, independently of this flag. |
-| `AGENT_MEMORY_SHARED_BUCKET` | `global` | Tenant name of the shared memory bucket every project can read (cross-project tribal knowledge). |
-| `AGENT_ACTOR` | `$EXAMLOPS_ACTOR`/`$USER`/`operator` | Actor recorded in preference memory + memory audit events. |
-
-### Versioned system prompt (ADR 0009)
-
-Skipper resolves its system prompt from the prompt registry as `skipper-system@<label>` instead of
-reading a Python constant, so a prompt change is a label move rather than a code deploy, and can be
-rolled back. The literal in `skipper/prompts.py` remains the seed and the fail-safe: an absent,
-unreachable or empty registry falls back to it silently, so the agent always starts.
-
-Seed it once with `python -c "from skipper.prompts import seed_system_prompt; seed_system_prompt()"`
-(idempotent, no behaviour change), then `exa prompt label skipper-system prod --version N` to move
-it and `exa prompt rollback skipper-system prod` to go back.
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `SKIPPER_PROMPT_REGISTRY` | `1` | Resolve the system prompt from the registry. `0`/`false`/`no`/`off` ⇒ always use the literal in `skipper/prompts.py`. |
-| `EXAMLOPS_PROMPT_GATE_LABELS` | `prod` | **B1** comma-separated prompt labels whose moves are gated by the C3 eval regression check (ADR 0009 clause 4). Gating `dev`/`staging` too would deadlock the registry — the gate reads its baseline from a labelled version. |
-| `SKIPPER_PROMPT_LABEL` | `prod` | Which label to resolve (`dev`/`staging`/`prod`), so a staging agent can run an unpromoted prompt. |
-
-### Self-instrumentation (Phase 2, ADR 0103)
-
-The reactive chat loop records each turn's tool calls into the shared `examlops.agentops` tables so `tool_success_rate` reflects real usage, and guards the turn with an in-loop circuit-breaker. Both are best-effort/fail-open — a missing `examlops.agentops` or `platform.db` never breaks a chat turn.
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `AGENT_INSTRUMENT_ENABLED` | `true` | Record turn tool-calls to `agent_sessions`/`agent_tool_calls` (feeds `tool_success_rate`). `false` ⇒ no telemetry. |
-| `AGENT_CIRCUIT_BREAKER` | `true` | Abort a runaway turn in-loop (repeating tool loop, step blow-up, all-error burst) instead of only noticing post-hoc. |
-
-### Reasoning topology (Phase 4, ADR 0100)
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `AGENT_SUPERVISOR_MODE` | `auto` | `auto` builds the supervisor graph (deterministic router → scoped specialist sub-agents: manager/monitor/helper/finops/governor/general). `single` forces the legacy single ReAct agent. Any build failure in `auto` degrades to `single`. |
-| `AGENT_USE_MCP_TOOLS` | `true` | Single-agent fallback sources tools from the `examlops.mcp` registry (reads + gated/tiered writes). The default supervisor path mixes MCP reads + in-repo writes regardless. |
-
-### Proactive monitoring — skipper-watch (Phase 6, ADR 0104)
-
-`python -m skipper.watch --once|--daemon` (`make skipper-watch`) reads drift/cost signals and, on a breach, raises an alert to the events outbox + audit log + episodic memory. LLM-free base loop.
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `AGENT_WATCH_ENABLED` | `true` | Kill-switch for the `--daemon` loop. |
-| `AGENT_WATCH_INTERVAL_S` | `300` | Daemon cycle interval (seconds). |
-| `AGENT_WATCH_DRIFT_Z` | `3.0` | Prediction-drift z-score threshold that raises a drift alert. |
-| `AGENT_WATCH_COST_BUDGET` | `0` | Platform cost ceiling (USD) for the FinOps signal; `0` disables the cost check. |
-
-### Knowledge / docs-RAG memory (Phase 3, ADR 0101)
-
-Semantic search over the documentation (`search_knowledge` tool + `make skipper-knowledge-ingest`), reusing the platform's `examlops.vector_store` seam driven by Skipper's local embeddings. Degrades to the ripgrep docs tool when embeddings/vector-store are unavailable — never worse than today.
-
-The degradation is graceful but no longer silent: `make skipper-knowledge-ingest` exits **1** when it indexed nothing because embeddings or the vector store were unavailable, and says which. Without that, a deployment could report a successful ingest while the index stayed empty and Skipper answered ungrounded.
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `AGENT_KNOWLEDGE_ENABLED` | `true` | Master switch for the docs-RAG tier. `false` ⇒ `search_knowledge` always uses ripgrep. |
-| `AGENT_KNOWLEDGE_KB` | `skipper-knowledge` | Vector-store collection name for the indexed docs. |
-| `AGENT_KNOWLEDGE_ROOTS` | `docs;design/adr` | Semicolon-separated roots to ingest (only `*.md` files). |
-| `AGENT_KNOWLEDGE_K` | `10` | How many chunks `search_knowledge` retrieves per question. Measured 2026-08-28: for *"confirm the Ray Serve deployment has its models loaded and is returning inference responses"* the chunk naming `exa serve check` is retrieved at ranks 7, 8, 10, 13 and 18 — the previous hard-coded `5` cut it off and the agent answered with the plausible commands ranked above it. Raise for recall, lower to spend less context. |
-| `AGENT_KNOWLEDGE_CHUNK_SIZE` / `AGENT_KNOWLEDGE_OVERLAP` | `60` / `15` | Chunk size (words) and overlap for `rag.chunk_text`. |
-
-`MLFLOW_TRACKING_URI`, `CONTROL_PLANE_URL`, and `CONTROL_PLANE_TOKEN` are shared with the pipeline / control plane sections above — set them once and the agent picks them up automatically. The agent exposes 45 base tools across 10 groups (plus 3 memory tools when the store is enabled); the **14 write/destructive tools** pause for operator confirmation (`Proceed? [y/N]`) before acting.
 
 ---
 
@@ -628,7 +486,6 @@ site's addressing or filesystem layout is published. Set the real values in
 | `EXAMLOPS_DEPLOY_PATH` | `/opt/examlops` | Checkout path on the deploy node; used by `make remote-rebuild` and the `platform/ci/*.sh` helper scripts |
 | `EXAMLOPS_HOST_REPO` | `/opt/examlops` | The same path as seen by the Docker host — bind-mounted into spawned JupyterHub notebooks and used by the compose stack |
 | `EXAMLOPS_STATE_DIR` | same as `EXAMLOPS_HOST_REPO` | Persistent databases and authored providers. GitLab deployments set this to a stable sibling directory while application releases use commit-addressed directories. |
-| `EXAMLOPS_HOST_STATE` | same as `EXAMLOPS_HOST_REPO` | Host-side persistent-state path passed by Compose to JupyterHub for sibling-container bind mounts. Normally derived from `EXAMLOPS_STATE_DIR`; do not set it separately. |
 | `EXAMLOPS_GITLAB_HOST_ENTRY` | `gitlab.example.com:127.0.0.1` | `"<host>:<ip>"` DNS pin injected into the control plane via `docker-compose.lxp.yml` `extra_hosts`, for deploy nodes that cannot resolve an internal GitLab |
 
 ```bash
@@ -646,22 +503,6 @@ EXAMLOPS_GITLAB_HOST_ENTRY=gitlab.internal.example.com:10.0.0.5
 
 ---
 
-## JupyterHub
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `DOCKER_NETWORK_NAME` | `examlops_default` | Docker network that spawned user containers join — must match the Compose project network |
-| `JUPYTERHUB_PUBLIC_URL` | unset | Browser-facing Hub URL the dashboard links to. Unset ⇒ the Workbenches console shows no link. |
-| `JUPYTERHUB_API_URL` | unset | Hub REST endpoint the dashboard uses to read workbench state |
-| `JUPYTERHUB_DASHBOARD_TOKEN` | unset | Hub API token the dashboard authenticates with |
-| `JUPYTERHUB_WORKBENCH_USER` | unset | Hub user whose server a workbench is spawned as |
-
-There is no `JUPYTERHUB_PORT`. The Hub listens on **8000** inside the container and Compose maps
-`18888:8000`; change the published port in `docker-compose.yml`, not through an environment
-variable.
-
----
-
 ## YAML Model Registry (Phase 9)
 
 | Variable | Default | Purpose |
@@ -671,6 +512,13 @@ variable.
 | `RAY_REGISTRY_ENV` | unset | Env overlay name (e.g., `prod`) loaded alongside `RAY_REGISTRY_PATH`; maps to `pipelines/envs/<ENV>.yaml` |
 
 ---
+
+## Grafana (monitoring profile)
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `GRAFANA_ADMIN_PASSWORD` | unset | Grafana admin password. **Required to start Grafana**: its entrypoint exits with an error while this is empty, so the well-known `admin`/`admin` login is never live. Not needed by any other service, so the core stack starts without it. |
+| `GRAFANA_ANONYMOUS_ENABLED` | `false` | `true` lets anyone reach the dashboards as a Viewer without logging in. |
 
 ## Monitoring — Scraped Services (Phase 13)
 
@@ -745,7 +593,7 @@ Unset ⇒ the carbon provider uses its static coefficient rather than a live gri
 | `EXAMLOPS_KSERVE_GATEWAY_URL` | unset | Gateway the generated KServe endpoint is reachable on; recorded on the endpoint. |
 | `FEATURE_STORE_DIR` | `.feature_store` beside the platform datastore | On-disk feature store root. |
 | `MLFLOW_SQLITE_DB` | `./mlflow.db` | MLflow's own SQLite file, when it is not on Postgres — the backup sqlite tier looks for it here. |
-| `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` | `minioadmin` | MinIO credentials. Compose passes these to JupyterHub as `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`. **Change both before exposing the stack.** |
+| `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` | `minioadmin` | MinIO credentials. **Change both before exposing the stack.** |
 | `DASHBOARD_TOKEN` | unset | Dashboard API token used by CLI/agent callers, stored as a CLI config field. |
 | `LOG_FORMAT` | `text` | `json` switches structured logging on. |
 | `MODELS` | `JPCP MACK MCBound` | Space-separated model list used by the batch/simulator entrypoints. |

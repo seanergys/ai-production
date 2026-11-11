@@ -2,7 +2,7 @@
 
 Makes "a project per model" the zero-effort default: for a Zoo/pack model it composes the existing
 project primitives — ``create_project`` → ``ensure_project_storage`` → ``set_project_budget`` →
-``assign_model_to_project`` → ``create_workbench`` → register the two pipeline surfaces — **idempotently**.
+``assign_model_to_project`` → register the two pipeline surfaces — **idempotently**.
 
 Not forced: a project can still hold several models (champion+challenger, ensembles) via
 ``exa project assign``; ``adopt`` just removes the setup friction for the common one-model case. It
@@ -22,7 +22,6 @@ DEFAULT_MEMORY_GB = 8.0
 DEFAULT_STORAGE_GB = 50.0
 DEFAULT_GPU_HOURS_BUDGET = 100.0
 DEFAULT_COST_BUDGET = 250.0
-WORKBENCH_NAME = "nb1"
 DEFAULT_CONNECTION_NAME = "minio"
 
 
@@ -94,7 +93,6 @@ def _pending_steps(
         get_project_storage,
         list_project_models,
     )
-    from examlops.workbenches import get_workbench
 
     init_db()
     with get_db() as conn:
@@ -113,7 +111,6 @@ def _pending_steps(
         "connection": get_connection(connection_name, project=project) is None,
         "budget": get_project_budget(project) is None,
         "model": model not in list_project_models(project),
-        "workbench": get_workbench(WORKBENCH_NAME, project) is None,
         "pipelines": pipe_kinds != {"prefect", "rayserve"},
     }
 
@@ -138,7 +135,7 @@ def adopt_model(
     """Provision (or complete) the project for one model. Idempotent; safe to re-run.
 
     Composes the project primitives — project envelope → storage → **per-project MinIO/S3 connection
-    (bound to that storage)** → budget → model membership → workbench → pipeline surfaces. The
+    (bound to that storage)** → budget → model membership → pipeline surfaces. The
     connection step resolves its endpoint/keys from explicit args or the platform S3 env
     (``MLFLOW_S3_ENDPOINT_URL``/``AWS_*``); when no endpoint is configured it is recorded as
     ``"skipped"`` rather than failing. Set ``provision_connection=False`` to skip it entirely.
@@ -178,7 +175,6 @@ def adopt_model(
         set_project_budget,
         upsert_project_pipeline,
     )
-    from examlops.workbenches import create_workbench
 
     # 1. Project envelope (quota).
     if pending["project"]:
@@ -255,14 +251,7 @@ def adopt_model(
     assign_model_to_project(project, model, added_by=actor)
     steps["model"] = "created" if pending["model"] else "exists"
 
-    # 5. Workbench (Jupyter env for the project).
-    if pending["workbench"]:
-        create_workbench(WORKBENCH_NAME, project, created_by=actor)
-        steps["workbench"] = "created"
-    else:
-        steps["workbench"] = "exists"
-
-    # 6. Register the two pipeline surfaces (train + serve) so the anatomy view is complete.
+    # 5. Register the two pipeline surfaces (train + serve) so the anatomy view is complete.
     if pending["pipelines"]:
         upsert_project_pipeline(project, "prefect", f"train:{model}", status="scaffolded")
         upsert_project_pipeline(project, "rayserve", f"serve:{model}", status="scaffolded")

@@ -17,7 +17,7 @@ def test_docs_markdown_covers_tree():
     result = runner.invoke(app, ["docs"])
     assert result.exit_code == 0, result.output
     assert "# `exa`" in result.output
-    assert "`exa mcp serve`" in result.output  # nested subcommand present
+    assert "`exa serve reload`" in result.output  # nested subcommand present
     assert "`exa retrain`" in result.output
 
 
@@ -37,7 +37,7 @@ def test_docs_json_tree():
     tree = json.loads(result.output)
     assert tree["name"] == "exa"
     names = {s["name"] for s in tree["subcommands"]}
-    assert "exa mcp" in names
+    assert "exa serve" in names
     # options captured on the root
     assert any(o["opts"].startswith("--output") for o in tree["options"])
 
@@ -48,4 +48,4 @@ def test_docs_writes_file(tmp_path):
     assert result.exit_code == 0, result.output
     content = out.read_text()
     assert content.startswith("# `exa`")
-    assert "`exa mcp resources`" in content
+    assert "`exa serve traffic`" in content

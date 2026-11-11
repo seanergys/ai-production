@@ -107,6 +107,5 @@ estimate, and null/range profile provide the same signals against `platform_db`.
 
 ## See also
 
-- [AgentOps (C4)](agentops.md) — agent-side analytics.
 - [Evaluation (C2/C3)](evaluation.md) — quality gates the same signals feed.
 - `exa eval feedback` — the ground-truth loop that supplies delayed labels.

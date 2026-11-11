@@ -21,14 +21,20 @@ config_package = "model_configs"
 [framework]
 # The ML framework this pack's models are built on. The engine resolves these
 # "module:attr" specs at load time instead of importing anything by name.
+# Model/dataset/dataloader classes come from upstream seanergys_modelzoo as published; the
+# platform-side glue (step marker, storage backends, save/load adapter, configurator base)
+# lives in this pack's seanergy_framework/ package.
 model_base        = "seanergys_modelzoo.models.common.seanergys_model:SeanergysModel"
-config_base       = "seanergys_modelzoo.models.common.seanergys_configurator:SeanergysModelConfiguration"
-pipeline_step     = "seanergys_modelzoo.decorators:pipeline_step"
+config_base       = "seanergy_framework.configurator:SeanergysModelConfiguration"
+pipeline_step     = "seanergy_framework.decorators:pipeline_step"
 model_params      = "seanergys_modelzoo.models.common.seanergys_configurator:SeanergysModelParams"
 dataloader        = "seanergys_modelzoo.dataloader.seanergys_dataloader:SeanergysDataloader"
 dataloader_params = "seanergys_modelzoo.models.common.seanergys_configurator:SeanergysDataloaderParams"
-get_backend       = "seanergys_modelzoo.datasets._backends:get_backend"
-framework_adapter = "seanergys_modelzoo.models.common.framework_adapter:adapter_for"
+get_backend       = "seanergy_framework.backends:get_backend"
+# Turns a backend name into plain dataset kwargs (a local data_path / use_zenodo_url), because
+# upstream dataset classes take no backend object.
+dataset_source    = "seanergy_framework.sources:resolve_dataset_kwargs"
+framework_adapter = "seanergy_framework.framework_adapter:adapter_for"
 model_task        = "seanergys_modelzoo.models.common.seanergys_model:SeanergysModelTask"
 # Package whose directory is scanned for concrete model classes.
 tasks_root        = "seanergys_modelzoo.models.tasks"

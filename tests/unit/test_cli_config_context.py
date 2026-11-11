@@ -83,49 +83,43 @@ def test_provenance_sources(cfg_file, monkeypatch):
 
 
 def test_provenance_redacts_secrets(cfg_file):
-    _config.write_config({"control_plane_token": "supersecret", "agent_token": "agentsecret"})
+    _config.write_config({"control_plane_token": "supersecret", "dashboard_token": "dashsecret"})
     prov = {r["key"]: r["value"] for r in _config.resolve_with_provenance()}
     assert prov["control_plane_token"] == "***"
-    assert prov["agent_token"] == "***"
+    assert prov["dashboard_token"] == "***"
     assert "supersecret" not in json.dumps(prov)
-    assert "agentsecret" not in json.dumps(prov)
+    assert "dashsecret" not in json.dumps(prov)
 
 
-def test_agent_token_can_be_scoped_per_context(cfg_file):
-    _config.write_config({"agent_token": "production-secret"}, context="production")
+def test_dashboard_token_can_be_scoped_per_context(cfg_file):
+    _config.write_config({"dashboard_token": "production-secret"}, context="production")
     _config.set_active_context("production")
-    assert _config.load_config().agent_token == "production-secret"
+    assert _config.load_config().dashboard_token == "production-secret"
 
 
 def test_cli_prompts_for_secret_and_never_echoes_it(cfg_file):
     result = runner.invoke(
         app,
-        ["config", "set", "agent_token", "--context", "production"],
+        ["config", "set", "dashboard_token", "--context", "production"],
         input="production-secret\nproduction-secret\n",
     )
     assert result.exit_code == 0, result.output
     assert "production-secret" not in result.output
     assert "***" in result.output
     _config.set_active_context("production")
-    assert _config.load_config().agent_token == "production-secret"
+    assert _config.load_config().dashboard_token == "production-secret"
 
 
 def test_cli_redacts_a_secret_passed_as_an_argument(cfg_file):
-    result = runner.invoke(app, ["config", "set", "agent_token", "legacy-secret"])
+    result = runner.invoke(app, ["config", "set", "dashboard_token", "legacy-secret"])
     assert result.exit_code == 0, result.output
     assert "legacy-secret" not in result.output
     assert "***" in result.output
 
 
 def test_config_file_is_owner_only(cfg_file):
-    _config.write_config({"agent_token": "private"})
+    _config.write_config({"dashboard_token": "private"})
     assert cfg_file.stat().st_mode & 0o777 == 0o600
-
-
-def test_agent_sessions_are_namespaced_by_active_project(cfg_file):
-    assert _config.scoped_agent_session("incident-42") == "incident-42"
-    _config.set_active_project("research")
-    assert _config.scoped_agent_session("incident-42") == "research:incident-42"
 
 
 # ── CLI wiring ────────────────────────────────────────────────────────────────

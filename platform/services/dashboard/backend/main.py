@@ -27,7 +27,6 @@ from routers import (
     config,
     connections,
     containers,
-    copilot,
     docs,
     drift_data,
     events,
@@ -67,7 +66,6 @@ from routers import (
     shadow,
     slo,
     traffic,
-    workbenches,
 )
 
 
@@ -201,7 +199,6 @@ app.include_router(governance.router, prefix="/api")
 app.include_router(llmops.router, prefix="/api")
 app.include_router(alerts.router, prefix="/api")
 app.include_router(flags.router, prefix="/api")
-app.include_router(copilot.router, prefix="/api")
 app.include_router(collab.router, prefix="/api")
 
 # Auth: login is unauthenticated; me/logout require viewer.
@@ -250,7 +247,6 @@ app.include_router(nextgen.router, prefix="/api")
 app.include_router(projects.router, prefix="/api")
 app.include_router(providers.router, prefix="/api")
 app.include_router(connections.router, prefix="/api")
-app.include_router(workbenches.router, prefix="/api")
 
 # Serve built React SPA — only when dist/ exists (skipped in test environment)
 _dist = Path(__file__).parent.parent / "frontend" / "dist"

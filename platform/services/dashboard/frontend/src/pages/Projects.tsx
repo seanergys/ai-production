@@ -190,7 +190,7 @@ export function Projects() {
             <button
               onClick={() => onboard.mutate({})}
               disabled={onboard.isPending}
-              title="Provision one project per Model-Zoo model (storage · MinIO connection · budget · workbench). Idempotent."
+              title="Provision one project per Model-Zoo model (storage · MinIO connection · budget). Idempotent."
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium disabled:opacity-60"
               style={{ background: 'oklch(0.62 0.16 265 / 15%)', color: 'oklch(0.62 0.16 265)', border: '1px solid oklch(0.62 0.16 265 / 30%)' }}
             >

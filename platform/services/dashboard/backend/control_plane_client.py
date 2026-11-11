@@ -1,7 +1,7 @@
 """Async httpx wrapper around the control-plane read endpoints.
 
-The dashboard only needs read traffic — control-plane authenticates writes
-with its own token, but /models/* and /models/{name}/* are public reads.
+The dashboard only needs read traffic. The control plane requires a credential with
+the ``read`` scope for it, supplied here through ``token_provider``.
 
 The control plane is a single-worker uvicorn app on an NFS-backed cluster. Under
 the dashboard's steady polling load it occasionally cannot accept a new
@@ -13,6 +13,7 @@ transient transport errors with a short backoff before giving up.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 
 import httpx
 
@@ -35,6 +36,7 @@ class ControlPlaneClient:
         transport: httpx.AsyncBaseTransport | None = None,
         retries: int = 2,
         backoff: float = 0.25,
+        token_provider: Callable[[], Awaitable[str | None]] | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         # Forgiving connect timeout (the part that fails under load); keep read
@@ -43,6 +45,9 @@ class ControlPlaneClient:
         self._transport = transport
         self._retries = retries
         self._backoff = backoff
+        # Looked up per request rather than captured once, so a credential changed on the
+        # Config page takes effect without a restart.
+        self._token_provider = token_provider
 
     def _client(self) -> httpx.AsyncClient:
         return httpx.AsyncClient(
@@ -51,13 +56,18 @@ class ControlPlaneClient:
             transport=self._transport,
         )
 
+    async def _auth_headers(self) -> dict[str, str]:
+        token = await self._token_provider() if self._token_provider else None
+        return {"Authorization": f"Bearer {token}"} if token else {}
+
     async def _get(self, path: str) -> httpx.Response:
         """GET with retry on transient transport errors (idempotent reads only)."""
         last_exc: Exception | None = None
+        headers = await self._auth_headers()
         for attempt in range(self._retries + 1):
             try:
                 async with self._client() as c:
-                    return await c.get(path)
+                    return await c.get(path, headers=headers)
             except _TRANSIENT_ERRORS as exc:
                 last_exc = exc
                 if attempt < self._retries:

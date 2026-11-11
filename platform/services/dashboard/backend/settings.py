@@ -15,10 +15,9 @@ class Settings(BaseSettings):
     minio_url: str = "http://localhost:19000"
     minio_console_url: str = "http://localhost:19001"
     control_plane_url: str = "http://localhost:18002"
-    agent_url: str = "http://localhost:18004"
-    dashboard_agent_api_key: str = ""
-    agent_api_key: str = ""
-    jupyterhub_url: str = "http://localhost:18888"
+    # Bearer credential the dashboard presents to the control plane. A value saved on the
+    # Config page takes precedence; this is the deployment-provided default.
+    control_plane_token: str = ""
     loki_url: str = "http://localhost:13100"
     seanerbus_bridge_status_url: str = "http://localhost:8003"
 
@@ -31,7 +30,6 @@ class Settings(BaseSettings):
     public_ray_serve_url: str = "http://localhost:18001"
     public_minio_console_url: str = "http://localhost:19001"
     public_control_plane_url: str = "http://localhost:18002"
-    public_jupyterhub_url: str = "http://localhost:18888"
     public_loki_url: str = "http://localhost:13100"
     public_seanerbus_bridge_url: str = "http://localhost:18003"
     public_dashboard_url: str = "http://localhost:18099"
@@ -80,15 +78,6 @@ class Settings(BaseSettings):
 
     # Shared platform SQLite database (written by CLI and SeanerBUS bridge)
     platform_db: str = "/repo/platform.db"
-
-    @property
-    def copilot_agent_api_key(self) -> str:
-        """Credential used by the dashboard BFF when calling the agent.
-
-        ``AGENT_API_KEY`` remains a compatibility fallback for existing deployments, but a
-        dedicated dashboard credential avoids sharing an operator's CLI credential with the BFF.
-        """
-        return self.dashboard_agent_api_key or self.agent_api_key
 
 
 # Required fields are supplied from the environment at runtime by

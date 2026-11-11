@@ -1,74 +1,21 @@
-"""Guard the two capability claims the platform publishes to *machines*.
+"""Guard the capability claim the dashboard publishes.
 
-A claim a machine reads and acts on is worth more scrutiny than a docstring, because nothing
-downstream re-checks it:
-
-* **MCP** — ``ToolSpec.mutating`` decides whether a tool is exposed at all when the server runs
-  read-only (``EXAMLOPS_MCP_ALLOW_WRITES`` unset), and ``tier`` tells an autonomous caller how
-  much confirmation an action needs. A mutating function registered as read-only is a privilege
-  escalation, not a documentation slip.
 * **Dashboard** — the ``/me`` capability list drives which affordances the UI renders, but the
   BFF is the sole enforcement point (F15). An unguarded mutating route is a control the UI
   believes is admin-only and the server lets anyone call.
 
-Both checks fail in *both* directions: an unguarded route is a failure, and so is leaving a route
+The check fails in *both* directions: an unguarded route is a failure, and so is leaving a route
 on the deliberately-viewer-writable allow-list after it grows a guard.
 """
 
 from __future__ import annotations
 
 import ast
-import inspect
-import re
 from pathlib import Path
 
 import pytest
 
-from examlops.mcp.tools import REGISTRY
-
 REPO = Path(__file__).resolve().parents[2]
-
-# Call shapes that mutate state. Matched against a tool's own body, which is where the call to
-# any writing helper appears regardless of which module the helper lives in.
-_WRITE_CALL = re.compile(
-    r"\b((?:set|write|delete|create|insert|update|record|claim|grant|approve|reject|enable"
-    r"|disable|trigger|register|bind|save|prune|rewrap|promote)_\w+)\s*\("
-)
-_WRITE_VERB = re.compile(
-    r"\.(post|put|patch|delete)\s*\(|execute\s*\(\s*[\"'](?:INSERT|UPDATE|DELETE)"
-)
-
-
-@pytest.mark.parametrize("spec", [s for s in REGISTRY if not s.mutating], ids=lambda s: s.name)
-def test_read_tools_do_not_mutate(spec) -> None:
-    """A tool advertised as read-only must not reach a write path."""
-    src = inspect.getsource(spec.fn)
-    calls = sorted({m.group(1) for m in _WRITE_CALL.finditer(src)})
-    assert not calls, (
-        f"{spec.name} is registered with mutating=False but calls {calls}. A read-only MCP "
-        f"server exposes it, so this is a privilege escalation — set mutating=True and a tier."
-    )
-    assert not _WRITE_VERB.search(src), (
-        f"{spec.name} is registered with mutating=False but issues an HTTP/SQL write."
-    )
-
-
-@pytest.mark.parametrize("spec", [s for s in REGISTRY if s.mutating], ids=lambda s: s.name)
-def test_mutating_tools_are_gated(spec) -> None:
-    """Every mutating tool must consult the least-privilege write gate (ADR 0102)."""
-    src = inspect.getsource(spec.fn)
-    assert "_agent_write_gate" in src, (
-        f"{spec.name} is registered as mutating but never calls _agent_write_gate."
-    )
-
-
-def test_tier_and_mutating_agree() -> None:
-    """``tier == 'read'`` and ``mutating is False`` are the same statement; keep them in step."""
-    mismatched = [
-        (s.name, s.mutating, s.tier) for s in REGISTRY if s.mutating == (s.tier == "read")
-    ]
-    assert not mismatched, f"tier/mutating disagree: {mismatched}"
-
 
 # ── dashboard: every mutating route is guarded ────────────────────────────────
 
@@ -84,7 +31,6 @@ _VIEWER_WRITABLE = {
     ("alerts.py", "ack"),  # operational acknowledgement, recorded with the actor
     ("collab.py", "add_comment"),  # F22 collaboration is a viewer affordance
     ("collab.py", "create_snapshot"),
-    ("copilot.py", "ask"),  # F11 copilot is propose-only
     ("models.py", "predict"),  # inference: a POST because it carries a body, not a write
     ("selfobs.py", "ui_action"),  # F24 telemetry of the caller's own UI action
 }

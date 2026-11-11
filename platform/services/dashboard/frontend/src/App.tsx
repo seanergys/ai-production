@@ -27,7 +27,6 @@ const Docs = lazy(() => import('@/pages/Docs').then((m) => ({ default: m.Docs })
 const SeanerBus = lazy(() => import('./pages/SeanerBus'))
 const Approvals = lazy(() => import('@/pages/Approvals').then((m) => ({ default: m.Approvals })))
 const Pipelines = lazy(() => import('@/pages/Pipelines').then((m) => ({ default: m.Pipelines })))
-const Jupyter = lazy(() => import('@/pages/Jupyter').then((m) => ({ default: m.Jupyter })))
 const Drift = lazy(() => import('@/pages/Drift').then((m) => ({ default: m.Drift })))
 const MlopsConsole = lazy(() => import('@/pages/MlopsConsole').then((m) => ({ default: m.MlopsConsole })))
 const FacilityConsole = lazy(() =>
@@ -177,7 +176,6 @@ export default function App() {
                       <Route path="/platform/providers" element={<Providers />} />
                       <Route path="/platform/config" element={<Config />} />
                       <Route path="/platform/integrations" element={<SeanerBus />} />
-                      <Route path="/platform/jupyter" element={<Jupyter />} />
                       <Route path="/platform/flags" element={<Flags />} />
                       {/* Feature-flagged consoles (F23 R7 / F25). */}
                       {isEnabled('mlopsConsole') && (

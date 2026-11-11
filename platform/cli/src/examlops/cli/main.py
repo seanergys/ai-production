@@ -13,10 +13,7 @@ from examlops.cli._help import SuggestGroup, assign_panels, make_ordered_group
 from examlops.cli.commands import (
     ab_cmd,
     admission_cmd,
-    agent_cmd,
-    agentops_cmd,
     approvals,
-    ask_cmd,
     assets_cmd,
     autopilot_cmd,
     autoscale_cmd,
@@ -58,7 +55,6 @@ from examlops.cli.commands import (
     hpc_cmd,
     hpo_cmd,
     llm_serve_cmd,
-    mcp_cmd,
     models,
     modelzoo,
     namespace_cmd,
@@ -88,7 +84,6 @@ from examlops.cli.commands import (
     supplychain_cmd,
     synth_cmd,
     vector_cmd,
-    workbench_cmd,
 )
 from examlops.cli.commands import (
     audit as audit_cmd,
@@ -133,21 +128,16 @@ _ROOT_PANELS: list[tuple[str, list[str]]] = [
     ("Models & Registry", ["models", "modelzoo", "embedding"]),
     ("Serving & Inference", ["serve", "predict", "production", "gateway", "vector", "rag"]),
     ("GenAI & LLMOps", ["genai", "prompt", "guardrails"]),
-    # The agentic surface was the platform's differentiator and the one thing a reader could not
-    # find in `exa --help`: its 15 commands were correct and complete but scattered across four
-    # panels — `ask` under Getting Started, `agentops` under GenAI, `autopilot` under Monitoring,
-    # `mcp` under Platform — and no panel title contained the word. Nothing was missing; the
-    # category simply had no name, which reads identically to absence.
-    # `explain` deliberately stays in Getting Started: it introspects the Click tree and involves
-    # no agent, so filing it here would make the panel a lie.
-    ("Agents & Automation", ["ask", "chat", "agent", "agentops", "autopilot", "mcp"]),
+    # The closed-loop automation surface. `explain` deliberately stays in Getting Started: it
+    # introspects the Click tree and involves no agent.
+    ("Agents & Automation", ["autopilot"]),
     ("Monitoring & Quality", ["drift", "eval", "slo", "fairness"]),
     ("HPC, Fleet & FinOps", ["hpc", "fleet", "hardware", "federated", "finops", "report"]),
     (
         "Governance & Security",
         ["approvals", "audit", "secrets", "compliance", "governance", "policy", "providers"],
     ),
-    ("Projects & Workspaces", ["project", "namespace", "connection", "workbench"]),
+    ("Projects & Workspaces", ["project", "namespace", "connection"]),
     (
         "Platform & Integrations",
         ["stack", "backup", "events", "admission", "exchange", "seanerbus"],
@@ -234,15 +224,6 @@ def main(
             )
 
 
-app.add_typer(agent_cmd.app, name="agent", help="Skipper agent — health, backend and memory")
-# `chat` sits at the top level rather than under `agent`: it is the thing an operator reaches
-# for by name, and burying the conversation one level down behind a diagnostics group would be
-# the same discoverability mistake the Agents & Automation panel exists to correct.
-app.command(
-    "chat",
-    help="Interactive conversation with the Skipper agent",
-    epilog=agent_cmd._CHAT_EXAMPLES,
-)(agent_cmd.chat)
 app.add_typer(approvals.app, name="approvals", help="Sysadmin approval gate")
 app.add_typer(
     autopilot_cmd.app,
@@ -288,11 +269,6 @@ app.add_typer(
 )
 app.add_typer(
     connection_cmd.app, name="connection", help="Named Connections — reusable data sources (P2)"
-)
-app.add_typer(
-    workbench_cmd.app,
-    name="workbench",
-    help="Project Workbenches — on-demand dev environments (P5)",
 )
 serve.app.add_typer(
     llm_serve_cmd.app, name="llm", help="LLM/VLM endpoints — vLLM lifecycle (Track V)"
@@ -379,9 +355,6 @@ app.add_typer(rag_cmd.app, name="rag", help="RAG — ingest knowledge bases and 
 app.add_typer(
     guardrails_cmd.app, name="guardrails", help="Guardrails — injection/PII/toxicity defense"
 )
-app.add_typer(
-    agentops_cmd.app, name="agentops", help="AgentOps — agent trace & tool-call analytics"
-)
 app.add_typer(slo_cmd.app, name="slo", help="Model-quality SLOs — error budgets & burn-rate alerts")
 app.add_typer(
     fairness_cmd.app, name="fairness", help="Fairness — subgroup performance & disparity monitoring"
@@ -405,7 +378,6 @@ app.add_typer(hpc_cmd.app, name="hpc", help="HPC fleet — discover schedulers, 
 hpc_cmd.app.add_typer(
     gpu_share_cmd.app, name="gpu-share", help="Fractional GPU allocation & bin-packing (E3)"
 )
-app.add_typer(mcp_cmd.app, name="mcp", help="MCP server + Agent-to-Agent (A2A) surface")
 app.add_typer(
     providers_cmd.app, name="providers", help="Pluggable calculation providers (all domains)"
 )
@@ -413,7 +385,6 @@ app.add_typer(
     policy_cmd.app, name="policy", help="Policy-as-code — declarative governance for mutations"
 )
 
-app.command("ask", epilog=ask_cmd._EXAMPLES)(ask_cmd.ask)
 app.command("explain", epilog=explain_command._EXAMPLES)(explain_command.explain)
 app.command("env", epilog=env_cmd._EXAMPLES)(env_cmd.env)
 app.command("retrain", epilog=retrain._EXAMPLES)(retrain.retrain)

@@ -31,11 +31,10 @@ _EXAMPLES_SET = (
     "  exa config set control_plane http://<REMOTE_HOST>:18002\n\n"
     "  [dim]# Secret values are read from a hidden prompt when omitted[/dim]\n"
     "  exa config set control_plane_token\n\n"
-    "  exa config set agent_token --context production\n\n"
     "  exa config set mlflow http://<REMOTE_HOST>:15000"
 )
 
-_SECRET_CONFIG_KEYS = {"control_plane_token", "dashboard_token", "agent_token"}
+_SECRET_CONFIG_KEYS = {"control_plane_token", "dashboard_token"}
 
 
 @app.command(epilog=_EXAMPLES_SHOW)
@@ -48,9 +47,7 @@ def show():
         "mlflow_url": cfg.mlflow_url,
         "prefect_url": cfg.prefect_url,
         "dashboard_url": cfg.dashboard_url,
-        "agent_url": cfg.agent_url,
         "control_plane_token": "***" if cfg.control_plane_token else "(unset)",
-        "agent_token": "***" if cfg.agent_token else "(unset)",
         "config_file": str(config_path()),
     }
     _output.print_record(data)
@@ -68,7 +65,6 @@ def init():
         ("mlflow", cfg.mlflow_url),
         ("prefect", cfg.prefect_url),
         ("dashboard", cfg.dashboard_url),
-        ("agent", cfg.agent_url),
     ]:
         val = typer.prompt(f"  {key} URL", default=current)
         if val != current:
@@ -78,9 +74,6 @@ def init():
     )
     if token != cfg.control_plane_token:
         updates["control_plane_token"] = token
-    agent_token = typer.prompt("  agent_token", default=cfg.agent_token or "", hide_input=True)
-    if agent_token != cfg.agent_token:
-        updates["agent_token"] = agent_token
     if updates:
         write_config(updates)
         _output.ok(f"Config saved to {config_path()}")
@@ -91,7 +84,7 @@ def init():
 @app.command(name="set", epilog=_EXAMPLES_SET)
 def set_config(
     key: str = typer.Argument(
-        ..., help="Config key (e.g. control_plane, agent, control_plane_token, agent_token)"
+        ..., help="Config key (e.g. control_plane, mlflow, control_plane_token)"
     ),
     value: str | None = typer.Argument(
         None, help="New value; omit secret values to enter them through a hidden prompt"

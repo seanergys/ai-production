@@ -29,7 +29,7 @@ exa project create research --cpu-limit 4 --memory-gb 8 --storage-gb 100
 ```
 
 You land on the project detail page — the single anatomy pane (Quota · Budget · Storage · Pipelines ·
-Resources · Members · Connections · Workbenches).
+Resources · Members · Connections).
 
 ## 2. Add a data connection
 

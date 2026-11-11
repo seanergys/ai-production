@@ -33,10 +33,6 @@ examlops.io/tenant: {{ .Values.global.tenant | quote }}
 {{- default .Values.existingSecret .Values.dashboard.existingSecret -}}
 {{- end -}}
 
-{{- define "examlops.agentSecret" -}}
-{{- default .Values.existingSecret .Values.agent.existingSecret -}}
-{{- end -}}
-
 {{/* Image ref: global.imageRegistry + repository + (tag|AppVersion).
 
      The registry is REQUIRED, and that is a deliberate change from a silent default.

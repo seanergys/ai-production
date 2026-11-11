@@ -104,3 +104,46 @@ async def test_get_raises_after_exhausting_retries():
     with pytest.raises(httpx.ConnectTimeout):
         await cp.list_model_names()
     assert calls["n"] == 3  # initial + 2 retries
+
+
+async def test_reads_carry_the_configured_bearer_credential():
+    seen: list[str | None] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.headers.get("authorization"))
+        return httpx.Response(200, json=[{"model_name": "JPCP"}])
+
+    async def token() -> str | None:
+        return "cp-read-token"
+
+    cp = ControlPlaneClient(
+        base_url="http://cp", transport=httpx.MockTransport(handler), token_provider=token
+    )
+    assert await cp.list_model_names() == ["JPCP"]
+    assert seen == ["Bearer cp-read-token"]
+
+
+async def test_reads_send_no_credential_when_none_is_configured(client_factory):
+    seen: list[str | None] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.headers.get("authorization"))
+        return httpx.Response(200, json=[])
+
+    await client_factory(handler).list_model_names()
+    assert seen == [None]
+
+
+async def test_token_falls_back_to_the_deployment_credential(monkeypatch):
+    from routers import config as config_router
+    from settings import settings
+
+    class _EmptyStore:
+        async def get(self, _model, _key):
+            return None
+
+    monkeypatch.setattr(settings, "control_plane_token", "from-deployment")
+    assert await config_router.get_control_plane_token(_EmptyStore()) == "from-deployment"
+
+    monkeypatch.setattr(settings, "control_plane_token", "")
+    assert await config_router.get_control_plane_token(_EmptyStore()) is None

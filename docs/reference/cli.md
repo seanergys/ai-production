@@ -698,7 +698,7 @@ The `--service` option accepts any of these values (tab-completes after `--insta
 ```
 postgres  minio  mlflow  orchestrator  ray-serving  control-plane
 prometheus  alertmanager  tempo  grafana  loki  promtail
-dashboard  jupyterhub  seanerbus-bridge
+dashboard  seanerbus-bridge
 ```
 
 ### `exa stack up`

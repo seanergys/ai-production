@@ -1,8 +1,8 @@
 apiVersion: v2
 name: examlops
 description: >-
-  ExaMLOps enterprise reference topology — stateless, horizontally-scalable control-plane,
-  dashboard, and agent tiers behind an ingress, designed for HA Postgres (CloudNativePG) and
+  ExaMLOps enterprise reference topology — stateless, horizontally-scalable control-plane
+  and dashboard tiers behind an ingress, designed for HA Postgres (CloudNativePG) and
   distributed MinIO (Phase 1 item 1.1). Compose remains dev-only; this chart is the production shape.
 type: application
 # Chart version, and it must move whenever the chart's contents do: `helm repo index`

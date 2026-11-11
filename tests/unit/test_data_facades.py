@@ -12,7 +12,6 @@ import importlib
 import pytest
 
 _DOMAINS = [
-    "agent",
     "coordination",
     "data_assets",
     "evaluation",

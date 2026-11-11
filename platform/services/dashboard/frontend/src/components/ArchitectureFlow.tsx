@@ -99,7 +99,6 @@ const nodeTypes = { status: StatusNode, groupLabel: GroupLabel }
 const NODE_DEFS: { id: string; label: string; x: number; y: number }[] = [
   { id: 'seanerbus_sim', label: 'SeanerBUS',         x: 0,    y: 60  },
   { id: 'seanerbus',     label: 'SeanerBUS Bridge', x: 0,    y: 200 },
-  { id: 'jupyterhub',    label: 'JupyterHub',       x: 0,    y: 440 },
   { id: 'control_plane', label: 'Control Plane',    x: 285,  y: 110 },
   { id: 'dashboard',     label: 'Dashboard',        x: 285,  y: 440 },
   { id: 'prefect',       label: 'Prefect',          x: 570,  y: 20  },
@@ -140,7 +139,6 @@ const EDGE_DEFS: [string, string, string, string, string, boolean][] = [
   ['control_plane', 'prometheus',    'metrics',         's-bottom', 't-top',    true],
   ['prometheus',    'grafana',       'dashboards',      's-right',  't-left',   true],
   ['loki',          'grafana',       'logs',            's-right',  't-bottom', true],
-  ['jupyterhub',    'mlflow',        'experiments',     's-right',  't-bottom', true],
   ['dashboard',     'control_plane', 'proxy / observe', 's-top',    't-bottom', true],
 ]
 

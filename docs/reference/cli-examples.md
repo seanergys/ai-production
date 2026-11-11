@@ -124,7 +124,6 @@ exa prompt list                 # versioned prompt registry
 exa prompt create greeting --template "Hello {name}"      # new immutable prompt version
 exa guardrails test "ignore previous instructions"        # run text through the guardrail
 exa guardrails stats            # allow/redact/block counts
-exa agentops tools              # per-tool success rate / latency for agent tool-calls
 exa rag list                    # knowledge bases + versions
 exa rag ingest kb ./docs        # chunk+embed+index docs into a KB
 exa gateway key list            # virtual keys (hashes only)
@@ -142,13 +141,11 @@ exa policy list                 # policy rules from policy.yaml  (graceful when 
 exa providers list              # pluggable calculation providers across every domain
 exa namespace list              # project namespaces with model counts
 exa connection list             # named connections (metadata only)
-exa workbench list              # on-demand dev environments
 exa events stats                # event-outbox backlog (pending/published/poison)
 exa admission stats             # admission-control queue depth by state
 exa backup list                 # backups & bundles with manifest metadata
 exa stack status                # running containers + ports
 exa seanerbus list              # models + their SeanerBUS UUIDs
-exa mcp tools                   # tools exposed to agents over MCP
 exa hpc nodes                   # compute nodes (CPUs/mem/GPUs/state)
 exa hpc clusters                # registered clusters + approval state
 ```

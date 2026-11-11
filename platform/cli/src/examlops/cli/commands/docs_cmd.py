@@ -10,10 +10,10 @@ from __future__ import annotations
 import re
 from typing import Any
 
-import click
 import typer
 
 from examlops.cli import _output
+from examlops.cli._click_compat import Command, Context
 
 _EXAMPLES = (
     "Examples:\n\n"
@@ -36,7 +36,7 @@ def _clean(text: str) -> str:
     return _MARKUP.sub("", text or "").strip()
 
 
-def _root_group() -> click.Command:
+def _root_group() -> Command:
     import typer.main
 
     from examlops.cli.main import app
@@ -44,12 +44,12 @@ def _root_group() -> click.Command:
     return typer.main.get_command(app)
 
 
-def _walk(cmd: click.Command, path: list[str]) -> dict[str, Any]:
+def _walk(cmd: Command, path: list[str]) -> dict[str, Any]:
     node: dict[str, Any] = {
         "name": " ".join(path),
         "help": _clean(cmd.help or cmd.get_short_help_str() or ""),
     }
-    ctx = click.Context(cmd, info_name=path[-1])
+    ctx = Context(cmd, info_name=path[-1])
     options: list[dict[str, object]] = []
     for param in cmd.get_params(ctx):
         # NB: don't use ``isinstance(param, click.Option)`` — Typer's ``TyperOption``

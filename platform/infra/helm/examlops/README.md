@@ -13,33 +13,12 @@
 |---|---|---|---|
 | control-plane | Deployment + Service | 1 replica (safe default) | readiness/liveness split, topology spread |
 | dashboard | Deployment + Service | `dashboard.replicaCount` (2) | PDB minAvailable 1 |
-| agent | Deployment + Service | 2 replicas by default; optional CPU HPA | PDB minAvailable 1, topology spread |
 | ingress | Ingress (TLS) | — | terminates TLS; dashboard owns `/api`, explicit machine paths reach the control plane |
 
 Every pod is **non-root, read-only-rootfs, all caps dropped, no privilege escalation**
 (`podSecurityContext`/`containerSecurityContext`), spread across nodes (`topologySpreadConstraints`),
 and carries **no `container_name` pins or hostPath** — pods are freely schedulable and replaceable,
 which is exactly what the audit flagged the Compose topology could not do.
-
-The agent HPA is intentionally off by default, so `agent.replicaCount: 2` remains authoritative.
-Enable it only after sizing the agent and its external model backend; CPU utilization reflects the
-agent pod, not provider-side capacity:
-
-```yaml
-agent:
-  autoscaling:
-    enabled: true
-    minReplicas: 2
-    maxReplicas: 6
-    targetCPUUtilizationPercentage: 70
-  pdb:
-    enabled: true
-    minAvailable: 1
-```
-
-Conversation checkpoints use shared Postgres. Long-term semantic memory is still SQLite-only, so
-the chart sets `AGENT_MEMORY_ENABLED=false`; otherwise each replica would expose a different,
-ephemeral memory store. Keep it disabled until a shared long-term store is available.
 
 ## State lives outside the chart (by design)
 
@@ -76,8 +55,6 @@ controlPlane:
   existingSecret: examlops-control-plane-secrets
 dashboard:
   existingSecret: examlops-dashboard-secrets
-agent:
-  existingSecret: examlops-agent-secrets
 ```
 
 Create these objects out-of-band with External Secrets, Sealed Secrets, or your cluster's secret
@@ -87,24 +64,13 @@ needed by each enabled capability:
 | Secret | Baseline keys | Add only when enabled |
 |---|---|---|
 | Control plane | `CONTROL_PLANE_TOKEN` or `CONTROL_PLANE_CREDENTIALS_JSON`; `EXAMLOPS_POSTGRES_DSN` | Redis/event credentials, ModelZoo webhook secret, GitLab trigger credentials |
-| Dashboard | `DATABASE_URL`, `EXAMLOPS_POSTGRES_DSN`, `DASHBOARD_JWT_SECRET`, `DASHBOARD_SECRET_KEY`, `DASHBOARD_ADMIN_PASSWORD`, `DASHBOARD_VIEWER_PASSWORD`, `DASHBOARD_AGENT_API_KEY` | `CONTROL_PLANE_TOKEN`, `EXAMLOPS_SECRETS_KEYS`, MinIO/GitLab/JupyterHub credentials |
-| Agent | `AGENT_API_KEYS_JSON`, `AGENT_POSTGRES_DSN` | One cloud LLM provider credential set (none for Ollama), `CONTROL_PLANE_TOKEN` for write tools, `DASHBOARD_ADMIN_PASSWORD` for dashboard tools, `AGENT_ACTION_SIGNING_KEY` |
+| Dashboard | `DATABASE_URL`, `EXAMLOPS_POSTGRES_DSN`, `DASHBOARD_JWT_SECRET`, `DASHBOARD_SECRET_KEY`, `DASHBOARD_ADMIN_PASSWORD`, `DASHBOARD_VIEWER_PASSWORD` | `CONTROL_PLANE_TOKEN`, `EXAMLOPS_SECRETS_KEYS`, MinIO/GitLab credentials |
 
 `CONTROL_PLANE_CREDENTIALS_JSON` is keyed by bearer secret; each value declares a trusted
 `principal`, `tenant`, and `scopes` list containing `read` and/or `write`. Give the dashboard and
 each automation caller a distinct entry and place only that caller's bearer value in its own Secret.
 The legacy `CONTROL_PLANE_TOKEN` maps to `legacy/default` with both scopes. Malformed structured
 configuration fails closed, including for the legacy credential.
-
-For Azure, the provider set is `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, and
-`AZURE_OPENAI_DEPLOYMENT`; Anthropic needs `ANTHROPIC_API_KEY`. Give the dashboard and each CLI
-operator different agent credentials. The keys in `AGENT_API_KEYS_JSON` are authenticated principal
-names used to own agent sessions and memory. Configure an operator's local CLI with the hidden
-`exa config set agent_token` prompt. Existing installations may keep `AGENT_API_KEY`; the dashboard
-uses it only when `DASHBOARD_AGENT_API_KEY` is absent.
-
-Use either the shown Azure credentials, `ANTHROPIC_API_KEY`, or override
-`agent.extraEnv` with a reachable Ollama URL. The agent pod's own `localhost` is not the host.
 
 ## Install / validate
 

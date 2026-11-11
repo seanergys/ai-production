@@ -35,14 +35,13 @@ install rather than failing with a traceback:
 | `examlops[backup]` | Object-store and off-site backup tiers — `exa backup` |
 | `examlops[coordination]` | Redis-backed cross-host locks, rate limits, deduplication, and event streams |
 | `examlops[finops]` | YAML/expression calculation providers — user-authored cost and carbon formulas |
-| `examlops[mcp]` | Serve the platform to LLM agents — `exa mcp serve` |
 | `examlops[oidc]` | Validate OIDC access tokens (RS256 against a JWKS) |
 | `examlops[postgres]` | Talk to a Postgres datastore instead of SQLite |
 | `examlops[serving-sglang]` | In-process SGLang engine (GPU host) |
 | `examlops[serving-vllm]` | In-process vLLM engine for offline batch scoring (GPU host) |
 | `examlops[synth]` | Synthetic data generation and its release gate — `exa data synth` |
 
-Combine them as usual — `uv pip install 'examlops[mcp,analysis]'`. `[dev]` on the repository
+Combine them as usual — `uv pip install 'examlops[postgres,analysis]'`. `[dev]` on the repository
 root pulls the whole development environment including the test dependencies.
 
 ## 1. Start the full stack
@@ -60,7 +59,6 @@ This starts Postgres, MLflow, Prefect, and Ray Serve in Docker, then installs al
 | Ray Serve API | http://localhost:18001 |
 | Ray Dashboard | http://localhost:18265 |
 | ExaMLOps Dashboard | http://localhost:18099 |
-| JupyterHub | http://localhost:18888 |
 
 ## 2. Train a model
 
@@ -193,24 +191,11 @@ exa modelzoo events                          # recent ModelZoo push events
 
 ModelZoo freshness badges on the dashboard Models page will show `CURRENT` or `UPDATED` depending on whether any ModelZoo repository pushes have been recorded since the last retrain.
 
-## 9. Start the notebook environment (Phase 9)
-
-```bash
-make jupyter-up
-```
-
-Opens JupyterHub at http://localhost:18888. Log in with your credentials. Each user gets an isolated JupyterLab container pre-configured to reach all stack services (MLflow, MinIO, Ray Serve, Prefect) by internal hostname.
-
-**VS Code:** Jupyter extension → *Specify Jupyter Server* → `http://localhost:18888/user/<username>/?token=<token>`
-
-See [JupyterHub Guide](jupyter.md) for user management and full setup details.
-
 ## Next steps
 
 - Browse all UIs and APIs → [Interfaces guide](interfaces.md)
 - Add your own model → [Add a new model](add-a-new-model.md)
 - Architecture overview → [Architecture](architecture.md)
 - Trigger retrains from clients → [Control Plane](control-plane.md)
-- Notebook environment → [JupyterHub Guide](jupyter.md)
 - Add a non-sklearn framework → [Add a new model](add-a-new-model.md)
 - Connect to an HPC cluster → [Distributed training](distributed-training.md)

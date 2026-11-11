@@ -21,7 +21,6 @@ sanity:secret-scan     ─┼─►  test:infra:compose     ─┐
                         └─►  test:examlops           │
                              test:postgres           ├─► deploy:lxp ─► smoke:lxp ─► post-deploy:lxp:notify-model-changes
                              test:integration        │                              └► post-deploy:lxp:retrain-push-models
-                             test:agent              │
                              test:frontend           │
                              test:control-plane     ─┘
                                                      │
@@ -166,7 +165,7 @@ the build instead of reaching a reader. It is in both `deploy:lxp`'s and `releas
 
 `--strict` fails on a broken *link*. It says nothing about a page in no navigation; that is
 `tests/unit/test_docs_are_reachable.py`, inside `test:examlops`. Locally: `make docs-build`, step
-15/16 of `make preflight`.
+14/15 of `make preflight`.
 
 ### test:examlops
 **Image:** `python:3.12-slim` | **Toolchain:** uv
@@ -388,27 +387,6 @@ The same copy to `docker.io/mskazemi/examlops-<service>`, gated on `DOCKERHUB_TO
 
 ## Stage: release
 
-### test:agent
-
-Runs the Skipper agent's 206 tests (`platform/services/agent/tests`).
-
-Until 2026-08-20 this suite ran in no pipeline and in no local gate: `make check` is
-`lint typecheck test dashboard-check`, and `test` is `pytest tests/` at the repo root, so nothing
-reached `platform/services/agent/tests`. A change to `skipper/` could break all 206 with every
-gate green — the worst component for that to be true of, because an agent's regressions are the
-hardest kind to notice by using it.
-
-It is a separate job rather than part of `test:examlops` because it needs eleven
-LangChain/LangGraph packages that the root `[dev]` extras deliberately do not carry. It installs
-from `platform/services/agent/requirements.txt` (the pinned source of truth), plus `pytest-asyncio`
-and an editable `platform/cli` — the tests import `examlops` the way the agent itself does.
-
-It declares **no cache**: the shared `uv-$CI_COMMIT_REF_SLUG` key holds the `.venv` every other job
-pulls, and pushing a langchain-laden one into it would slow them all down for nothing.
-
-`deploy:lxp` and `release:gitlab` both require it. Locally: `make ci-agent` (or `make skipper-test`),
-and it is step 10/15 of `make preflight`.
-
 ### test:frontend
 
 Runs the dashboard frontend's lint, its 373 vitest tests, and `tsc -b && vite build`
@@ -431,7 +409,7 @@ roughly 70 s locally (`npm ci` 12 s · lint 16 s · vitest 29 s · build 15 s).
 Runs the control plane service's own 82 tests (`platform/services/control_plane/tests`) — the
 approval-gate reliability suite, weak-token rejection, the modelzoo webhooks, and model metadata.
 
-Like `test:agent` and `test:frontend` before it, this suite ran in **no pipeline and no local
+Like `test:frontend` before it, this suite ran in **no pipeline and no local
 gate**: `make test` is `pytest tests/` at the repo root, and `test:examlops` runs `tests/unit/`,
 so neither reaches `platform/services/`. It had also rotted past the point of running at all —
 `pytest` could not even collect it (`ModuleNotFoundError: No module named 'model_meta'`), because
@@ -761,7 +739,6 @@ make ci                # every job group
 make ci-modelzoo       # poetry: lint + unit + smoke tests (upstream; not run by preflight)
 make ci-infra          # compose validation + slurm lint + alert-rules check
 make ci-examlops       # uv: lint + mypy + unit + dashboard tests
-make ci-agent          # the Skipper agent suite
 make ci-frontend       # dashboard frontend: lint + vitest + build
 make ci-control-plane  # the control plane's own suite
 make test-postgres     # the whole suite again on a throwaway Postgres 16

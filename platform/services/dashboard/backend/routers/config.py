@@ -51,8 +51,6 @@ URL_KEYS: frozenset[str] = frozenset(
         "seanerbus_default_model",
         "seanerbus_default_alias",
         "seanerbus_bridge_status_url",
-        # JupyterHub
-        "jupyterhub_url",
     }
 )
 SECRET_KEYS: frozenset[str] = frozenset(
@@ -374,3 +372,17 @@ def get_decrypted_secret_sync_factory():
 
 
 get_decrypted_secret = get_decrypted_secret_sync_factory()
+
+
+async def get_control_plane_token(db: AsyncSession) -> str | None:
+    """Credential for control-plane calls: the Config-page value, else the deployment's.
+
+    Without the fallback a freshly deployed dashboard has no credential until an admin types
+    one in — and it cannot be typed in, because the control plane's 401 was relayed to the
+    browser, which treats any 401 as an expired session and logs the admin straight out.
+    """
+    from settings import settings  # noqa: PLC0415
+
+    return await get_decrypted_secret(db, "control_plane_token") or (
+        settings.control_plane_token or None
+    )

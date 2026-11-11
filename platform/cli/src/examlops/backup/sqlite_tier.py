@@ -31,8 +31,6 @@ _MANIFEST_SUFFIX = ".manifest.json"
 _SQLITE_DBS: list[dict[str, str]] = [
     {"name": "platform", "env": "PLATFORM_DB", "default": ""},  # default resolved dynamically
     {"name": "approvals", "env": "CONTROL_PLANE_DB", "default": "/data/approvals.db"},
-    {"name": "skipper_memory", "env": "AGENT_MEMORY_DB", "default": "./skipper_memory.db"},
-    {"name": "agent_memory", "env": "AGENT_DB", "default": "./agent_memory.db"},
     {"name": "mlflow", "env": "MLFLOW_SQLITE_DB", "default": "./mlflow.db"},
 ]
 

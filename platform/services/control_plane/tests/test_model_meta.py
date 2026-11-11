@@ -1,5 +1,5 @@
 import pytest
-from model_meta import ModelMeta, get_model_meta, list_model_names, read_readme
+from model_meta import _MODELZOO, ModelMeta, get_model_meta, list_model_names, read_readme
 
 
 def test_list_model_names_returns_jpcp_mack_mcbound():
@@ -25,6 +25,10 @@ def test_get_model_meta_unknown_raises_lookup():
         get_model_meta("DoesNotExist")
 
 
+@pytest.mark.skipif(
+    not (_MODELZOO / "seanergys_modelzoo").is_dir(),
+    reason="needs the upstream modelzoo checkout (`make modelzoo`); not present in CI",
+)
 def test_read_readme_jpcp_returns_text_and_sha():
     text, sha = read_readme("JPCP")
     assert sha and len(sha) == 64

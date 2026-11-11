@@ -39,7 +39,7 @@ footer of utility links. URLs are lifecycle-scoped (e.g. `/build/models`,
 | **Serve** | LLMOps · Traffic · Gateway · Scaling · Next-Gen |
 | **Operate** | Drift · Alerts · Autopilot · SLOs · Admission · Facility · FinOps · Self-Obs |
 | **Govern** (admin) | Compliance · Audit · Approvals · Fairness · Secrets |
-| **Platform** | Projects · Events · Services · Providers · Config · SeanerBUS · Jupyter · Flags (admin) |
+| **Platform** | Projects · Events · Services · Providers · Config · SeanerBUS · Flags (admin) |
 | **Utility (footer)** | Documents · Preferences |
 
 Cross-cutting tools available on every page: the **Command Palette** (⌘K / Ctrl-K), the
@@ -386,7 +386,7 @@ in for the full anatomy.
 ## Project Detail  <!-- (role: viewer / admin) -->
 
 Full project anatomy at `/platform/projects/:name`: quota, budget-vs-consumption, storage,
-pipelines (Prefect + Ray Serve), resources by kind, members, connections, workbenches,
+pipelines (Prefect + Ray Serve), resources by kind, members, connections,
 authored providers, and a danger zone. Every write modal shows the equivalent `exa`
 command inline. Viewers read; admins write.
 
@@ -401,10 +401,6 @@ command inline. Viewers read; admins write.
 | New connection **(admin)** | Create an s3/uri/dataplane connection; optional secret stored encrypted (never returned) | Wire a project to external data | Connections → **New connection** | `exa connection create <name> --kind … --project <p> [--secret-value …]` |
 | Test connection **(admin)** | Reachability probe of a connection | Verify credentials/endpoint | Connections → row → **Test** | — |
 | Delete connection **(admin)** | Removes a connection | Clean up | Connections → row → **Delete** | — |
-| New workbench **(admin)** | Create a project-bound notebook with its own volume | Give a project an interactive env | Workbenches → **New workbench** | `exa workbench create <name> --project <p> [--image …]` |
-| Start/stop workbench **(admin)** | Flip a workbench RUNNING/STOPPED (start injects the project's connections as env vars) | Spin a notebook up/down | Workbenches → **Start** / **Stop** | `exa workbench` |
-| Open workbench | Opens the running notebook URL | Do interactive work | Workbenches → **Open** | — |
-| Delete workbench **(admin)** | Removes the workbench (volume kept) | Clean up | Workbenches → trash icon | — |
 | Manage providers **(admin/cap)** | Create/activate/delete the Python behind the project's calculations (capability-gated) | Swap a FinOps/drift/promotion formula | Providers card → **New provider** / Activate / Delete | `exa providers list` |
 | Delete project **(admin)** | Removes the project grouping (underlying models/connections/storage kept) | Retire a workspace | Danger zone → **Delete project** (confirm) | — |
 
@@ -474,14 +470,6 @@ the Config page (admin).
 | Edit in Config | Deep-links to the SeanerBUS section of Config (admin edits) | Change bridge connection settings | SeanerBUS → **Edit in Config** | — |
 | (assign missing UUIDs) | Shown when a model UUID is unassigned | Backfill per-model UUIDs | (hint on page) | `exa seanerbus init-uuids` |
 
-## Jupyter  <!-- (role: viewer) -->
-
-JupyterHub launcher/status page.
-
-| Action | What it does | Use case | How to (UI) | Equivalent CLI |
-|---|---|---|---|---|
-| Launch JupyterHub | Opens the JupyterHub UI (port 18888) | Do notebook work | Sidebar → Jupyter → **Launch JupyterHub** | `make jupyter-up` (start), `make jupyter-add-user USER=…` |
-
 ## Flags  <!-- (role: admin) -->
 
 Server-side feature-flag management. Admins see every flag with default/override/effective
@@ -508,17 +496,6 @@ models, HPC jobs, audit events, and pages.
 | Navigate | Fuzzy-jump to any page | Skip the sidebar | Type a page name → Enter | — |
 | Copy an action's CLI | Copies the `exa` command for a matched action (viewer never sees admin-only entries) | Learn/script the CLI equivalent | Select an Action row → Enter | (varies by action) |
 | Federated search | Search models/jobs/audit/pages | Find an entity by name | Type a query → pick a result | — |
-
-### Copilot  <!-- (role: viewer / admin) -->
-
-Context-aware assistant in the shell (bottom-right). Answers grounded questions and
-**suggests** `exa` commands as copy-only cards — it never executes anything. Thin proxy to
-the existing Skipper agent; provider cost depends on the backend configured for Skipper.
-
-| Action | What it does | Use case | How to (UI) | Equivalent CLI |
-|---|---|---|---|---|
-| Ask a question | Grounded Q&A about the current page/entity | "Why is jpcp drifting?" / "How do I promote?" | Copilot launcher → type | `exa ask "<question>"` |
-| Copy a proposed command | Read-only or "Needs approval" `exa` command as a copy-only card (never a run button) | Get the exact command, then run it through the normal gated flow | Copilot → copy the command card | (the proposed command) |
 
 ### Personalization & Watchlist (Preferences)  <!-- (role: viewer / admin) -->
 

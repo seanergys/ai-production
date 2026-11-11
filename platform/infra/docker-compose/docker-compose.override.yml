@@ -1,0 +1,25 @@
+# Local overrides for this VM — auto-loaded by `docker compose` (and so by the Makefile).
+# Not part of the upstream repo.
+
+services:
+  # minio/minio and minio/mc were removed from Docker Hub; use the pgsty community builds.
+  minio:
+    image: pgsty/minio:latest
+  minio-init:
+    image: pgsty/mc:latest
+
+  # Upstream builds with `network: host` (a workaround for the lxp-cpu01 firewall). Compose v5
+  # treats that as a privileged entitlement and refuses it without an interactive prompt; this
+  # VM has normal egress, so the default build network is enough.
+  mlflow:
+    build:
+      network: default
+  ray-serving:
+    build:
+      network: default
+  control-plane:
+    build:
+      network: default
+  dashboard:
+    build:
+      network: default

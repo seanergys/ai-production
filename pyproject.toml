@@ -39,6 +39,10 @@ dependencies = [
     "fastapi>=0.100.0,<0.137",
     # ray serving
     "ray[serve]==2.55.0",
+    # <7: ray 2.55.0's serve config reads `FieldDescriptor.label`, which protobuf 7 removed —
+    # `serve.start()` dies with "'FieldDescriptor' object has no attribute 'label'". Lift the cap
+    # together with the ray pin.
+    "protobuf>=4.25,<7",
     # CLI
     "typer>=0.12",
     "prometheus-client>=0.20",

@@ -224,5 +224,5 @@ used for YAML I/O; pass dict specs directly if it's absent.
 ## See also
 
 - [Evaluation gate (C3)](evaluation.md) — the promotion gate SLO exhaustion feeds.
-- [Advanced drift (C5)](drift-advanced.md) / [AgentOps (C4)](agentops.md) — SLI sources.
+- [Advanced drift (C5)](drift-advanced.md) — SLI source.
 - `platform/infra/docker-compose/alert_rules.yml` — the hand-authored baseline alerts.

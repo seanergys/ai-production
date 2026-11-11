@@ -65,14 +65,13 @@ def test_per_tier_secret_values_default_to_legacy_fallback():
     assert values["existingSecret"] == "examlops-secrets"
     assert values["controlPlane"]["existingSecret"] == ""
     assert values["dashboard"]["existingSecret"] == ""
-    assert values["agent"]["existingSecret"] == ""
 
 
 @needs_helm
 def test_empty_per_tier_values_render_the_legacy_global_secret_everywhere():
     documents = _render()
 
-    for component in ("control-plane", "dashboard", "agent"):
+    for component in ("control-plane", "dashboard"):
         names = _secret_names(_deployment(documents, component))
         assert names
         assert set(names) == {"examlops-secrets"}
@@ -83,12 +82,10 @@ def test_per_tier_overrides_cover_env_from_and_explicit_key_refs():
     expected = {
         "control-plane": "control-plane-credentials",
         "dashboard": "dashboard-credentials",
-        "agent": "agent-credentials",
     }
     documents = _render(
         "controlPlane.existingSecret=control-plane-credentials",
         "dashboard.existingSecret=dashboard-credentials",
-        "agent.existingSecret=agent-credentials",
     )
 
     for component, secret_name in expected.items():

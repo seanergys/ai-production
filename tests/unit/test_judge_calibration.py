@@ -396,22 +396,3 @@ def test_an_undeclared_metric_keeps_the_previous_behaviour():
     record_eval_result("s", "M", {"accuracy": 0.8}, run_id="r1", sample_size=10)
     row = next(r for r in get_eval_results("M", "s") if r["metric"] == "accuracy")
     assert row["score_lo"] is not None and row["score_hi"] is not None
-
-
-def test_the_suites_declare_every_unit_metric_they_record():
-    """The guard against this recurring: a new unit-bearing score added to `_latency_scores` or
-    `usage_scores` must join the declaration, or it silently acquires an interval again the first
-    time it happens to be small."""
-    from examlops.cli.commands.eval_cmd import _NON_PROPORTION_METRICS, _latency_scores
-    from examlops.evaluation.usage import Usage, usage_scores
-
-    # Derived by *running* the two producers, not by restating their keys here — a list copied
-    # into the test would keep passing after a new score was added to the helper.
-    produced = set(_latency_scores([0.5, 1.5])) | set(
-        usage_scores([Usage(1000, 1000, 2000)], model="gpt-4o")
-    )
-    # Everything they emit carries a unit except this one, which is a genuine k/n.
-    proportions = {"usage_reported_rate"}
-    undeclared = (produced - proportions) - _NON_PROPORTION_METRICS
-    assert not undeclared, f"undeclared unit metrics: {sorted(undeclared)}"
-    assert proportions <= produced, "the known-proportion list names a score nothing produces"

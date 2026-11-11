@@ -18,7 +18,6 @@ LangGraph agent (**Skipper**) over the same code paths.
 | Understand how the pieces fit | [Architecture](guides/architecture.md) |
 | Find the command for a task | [exa CLI — Command Guide](reference/cli-commands-guide.md) |
 | Drive the platform from a browser | [Dashboard Usage Guide](dashboard/usage-guide.md) |
-| Talk to the platform in plain English | [Management Agent](guides/agent.md) |
 | Add your own model | [Add a New Model](guides/add-a-new-model.md) |
 
 ```bash
@@ -63,7 +62,5 @@ ExaMLOps deliberately exposes the same capabilities four ways, over shared code 
 |---|---|
 | Command line | `exa` — [command guide](reference/cli-commands-guide.md) |
 | Web | [Dashboard](dashboard/index.md) |
-| Conversational | `exa chat` — [Skipper agent](guides/agent.md) |
-| Agent-callable | `exa mcp serve` — MCP tools, resources and prompts |
 
 See [All Interfaces](guides/interfaces.md) for how they relate.

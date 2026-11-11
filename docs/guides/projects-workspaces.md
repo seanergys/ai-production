@@ -167,9 +167,6 @@ written through the same secrets client:
   relations); each change is audited.
 - **Danger zone** — admins can **Delete project**: removes the project grouping plus its membership /
   resource / storage / pipeline rows. The underlying models and connections are *not* deleted.
-- **Workbenches** — the project's dev environments (§12) with their status. Admins get a per-row
-  Start / Stop toggle (`RUNNING` ↔ `STOPPED`); the flip is audited. The actual pod spawn is
-  delegated to the runtime — the dashboard records and reports intent.
 
 Every mutation is capability-gated at the BFF (the sole enforcement point), viewer-denied with a
 human `deny_reason`, and audited as a `dashboard`-sourced event.
@@ -207,34 +204,11 @@ exa project cost research      # attributed GPU-hours · USD · carbon (model_co
 exa project budget research    # budget/quota status; exits 1 and audits a breach if over budget
 ```
 
-## 12. Workbenches
-
-On-demand, project-bound dev environments. Starting one injects the project's Named Connections
-(§9) as `EXA_CONN_<name>_<key>` / `EXA_CONN_<name>_SECRET` env vars; the actual spawn is
-delegated to the runtime (JupyterHub / Docker).
-
-```bash
-exa workbench create nb --project research --image jupyter/scipy-notebook:latest
-exa workbench start nb --project research     # marks RUNNING, prints launch spec + injected env count
-exa workbench list --project research
-exa workbench stop nb --project research
-exa workbench delete nb --project research
-```
-
-## 13. Agent surface (MCP)
-
-Projects are callable by LLM agents over MCP (`exa mcp serve`). Read tools `project_list`,
-`project_detail`, and `project_cost` let an agent inspect the workspace graph — membership, quota,
-budget vs. consumption — with no secret exposure. The write tools `project_assign_model` and
-`project_add_member` are registered only when writes are enabled (`--allow-writes` /
-`EXAMLOPS_MCP_ALLOW_WRITES=1`), pass the same least-privilege `agent_write` policy gate as every
-other mutating tool, and are audited. See `docs/reference/cli-generated.md` → *Agent surface*.
-
-## 14. Automatic onboarding — one project per model (CLI · Dashboard · Jupyter)
+## 12. Automatic onboarding — one project per model (CLI · Dashboard · SDK)
 
 Instead of wiring each project by hand, **onboard a model** to get its whole workspace in one idempotent
 step: the project envelope + quota, per-project storage, a **bound per-project MinIO/S3 connection**,
-a FinOps budget, the model assignment, a Jupyter workbench, and the train/serve pipeline surfaces. All
+a FinOps budget, the model assignment, and the train/serve pipeline surfaces. All
 three surfaces call the *same* code path (`examlops.modelzoo_adopt`), so they can never drift.
 
 The MinIO connection resolves its endpoint/keys from the platform S3 env (`MLFLOW_S3_ENDPOINT_URL` +
@@ -251,7 +225,7 @@ exa modelzoo adopt JPCP --no-connection # project only, skip the MinIO wiring
 exa modelzoo adopt JPCP --connection-name minio-prod   # rename the per-project connection
 ```
 
-**Jupyter / SDK** — the stable programmatic surface (`examlops.sdk`):
+**SDK** — the stable programmatic surface (`examlops.sdk`):
 ```python
 from examlops.sdk import list_zoo_models, onboard_model, onboard_all_models
 
@@ -282,4 +256,4 @@ dry-run), so a re-run is safe and shows exactly what (if anything) changed.
 - `docs/reference/cli-generated.md` — full `exa project` command tree
 - `docs/guides/rbac-multi-tenancy.md` — how membership grants are enforced
 - ADRs 0086 (unified workspace), 0087–0090 (connections, project-scoped serving/pipelines,
-  project FinOps, workbenches), 0084 (Docker resource envelopes), 0057 (authn/authz/multitenancy)
+  project FinOps), 0084 (Docker resource envelopes), 0057 (authn/authz/multitenancy)

@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-for p in (str(REPO_ROOT), str(REPO_ROOT / "modelzoo")):
+for p in (str(REPO_ROOT), str(REPO_ROOT / "modelzoo"), str(REPO_ROOT / "usecases" / "seanergy")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
@@ -31,7 +31,7 @@ if str(_MZ) not in sys.path:
     sys.path.insert(0, str(_MZ))
 
 
-from seanergys_modelzoo.models.common import framework_adapter as fa  # noqa: E402
+from seanergy_framework import framework_adapter as fa  # noqa: E402
 
 # ── get_adapter / adapter_for ────────────────────────────────────────────────
 
@@ -160,7 +160,7 @@ class TestHuggingFaceAdapter:
 
 class TestLLMAgentSkeleton:
     def test_chat_must_be_overridden(self):
-        from seanergys_modelzoo.models.common.huggingface_seanergys_model import (
+        from seanergy_framework.huggingface_base import (
             SeanergysLLMAgent,
         )
 
@@ -201,7 +201,7 @@ class TestLLMAgentSkeleton:
             agent.chat([{"role": "user", "content": "hi"}])
 
     def test_framework_is_huggingface(self):
-        from seanergys_modelzoo.models.common.huggingface_seanergys_model import (
+        from seanergy_framework.huggingface_base import (
             SeanergysHuggingFaceModel,
             SeanergysLLMAgent,
         )

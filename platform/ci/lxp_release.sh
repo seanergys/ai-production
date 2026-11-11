@@ -145,7 +145,7 @@ activate_release() {
     export EXAMLOPS_STATE_DIR="$STATE_ROOT"
     export PLATFORM_DB="$STATE_ROOT/platform.db"
     export EXAMLOPS_PROVIDERS_DIR="$STATE_ROOT/.providers"
-    export PATH="$HOME/.local/bin:/localhome/${USER}/.local/bin:$PATH"
+    export PATH="$HOME/.local/bin:/localhome/${USER:-$(id -un)}/.local/bin:$PATH"
 
     cd "$release_path"
 
@@ -172,7 +172,7 @@ activate_release() {
         echo "warn: exa CLI refresh skipped (uv unavailable) — non-fatal"
     fi
     setfacl -R -m u:1000:rwX -m d:u:1000:rwX usecases pipelines 2>/dev/null \
-        && echo "workbench pipeline ACL set" \
+        && echo "pipeline ACL set" \
         || echo "warn: pipeline ACL skipped — non-fatal"
 
     COMPOSE=(docker compose
@@ -188,23 +188,6 @@ activate_release() {
     else
         "${COMPOSE[@]}" up --build -d
     fi
-    docker build --network=host -t examlops-jupyterlab \
-        -f platform/infra/docker-compose/Dockerfile.jupyterlab \
-        platform/infra/docker-compose >/dev/null 2>&1 \
-        && echo "jupyterlab image built" \
-        || echo "warn: jupyterlab image build skipped"
-    # jupyterhub is profile-gated, so the pull/up above never touched it. In registry mode
-    # it must pull rather than build, like everything else — otherwise one service in the
-    # stack is still built on the node and the deploy is half-pinned.
-    if [ -n "${EXAMLOPS_IMAGE_PREFIX:-}" ]; then
-        JUPYTER_START=(--profile jupyter up -d --no-build jupyterhub)
-        "${COMPOSE[@]}" --profile jupyter pull --quiet jupyterhub >/dev/null 2>&1 || true
-    else
-        JUPYTER_START=(--profile jupyter up -d --build jupyterhub)
-    fi
-    "${COMPOSE[@]}" "${JUPYTER_START[@]}" >/dev/null 2>&1 \
-        && echo "jupyterhub up" \
-        || echo "warn: jupyterhub start skipped"
     # The bridge is the one service that is never prebuilt: its build context is the parent
     # of this repo (it needs the sibling seanerbus checkout), which no CI clone has. It
     # builds on the node in both modes, and compose tags it under the release's image name.

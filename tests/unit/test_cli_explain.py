@@ -159,23 +159,3 @@ def test_a_genuinely_unknown_command_is_still_unknown():
 
     assert _resolve(["exa", "nope"]) is None
     assert _resolve(["nope"]) is None
-
-
-def test_the_mcp_tool_accepts_the_command_string_it_prints():
-    """Round-trip: whatever `explain_command` echoes must be valid input to `explain_command`."""
-    from examlops.mcp import tools
-
-    first = tools.explain_command("serve reload")
-    assert first["ok"] is True
-    again = tools.explain_command(first["command"])
-    assert again["ok"] is True, f"echoed {first['command']!r} was rejected: {again}"
-    assert again["command"] == first["command"]
-
-
-def test_the_mcp_tool_explains_a_prefixed_command():
-    from examlops.mcp import tools
-
-    out = tools.explain_command("exa status")
-    assert out["ok"] is True
-    assert out["command"] == "exa status"
-    assert out["summary"]

@@ -16,7 +16,6 @@ _ENDPOINTS = {
     "connections": ("/api/v1/connections", "routers.connections"),
     "secrets": ("/api/secrets", "routers.secrets"),
     "gateway": ("/api/gateway/keys", "routers.gateway"),
-    "workbenches": ("/api/v1/workbenches", "routers.workbenches"),
 }
 
 

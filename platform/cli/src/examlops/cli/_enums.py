@@ -46,7 +46,6 @@ class StackService(StrEnum):
     loki = "loki"
     promtail = "promtail"
     dashboard = "dashboard"
-    jupyterhub = "jupyterhub"
     seanerbus_sim = "seanerbus-sim"
     seanerbus_bridge = "seanerbus-bridge"
     vllm = "vllm"  # GPU-only, behind the `vllm` compose profile (ADR 0107)

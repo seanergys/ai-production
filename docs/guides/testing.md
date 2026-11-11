@@ -146,7 +146,6 @@ parallel, each verified green before the flag was applied:
 |---|---|---|---|
 | Root unit (2781) | `make test-fast` | 520s | **66s** |
 | Dashboard backend (486) | `make dashboard-check-backend` | 35s | **12s** |
-| Skipper agent (337) | `make skipper-test` | 36s | **17s** |
 | Control plane (130) | `make ci-control-plane` | 21s | **13s** |
 
 Roughly **10 minutes of testing becomes under 2**. The dashboard, agent and control-plane suites are

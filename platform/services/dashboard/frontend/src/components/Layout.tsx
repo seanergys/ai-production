@@ -18,7 +18,6 @@ import {
   type NavItem,
 } from '@/lib/nav'
 import { CommandPalette } from '@/components/CommandPalette'
-import { CopilotPanel } from '@/components/CopilotPanel'
 import { HelpDrawer } from '@/components/HelpDrawer'
 import { OnboardingTour } from '@/components/OnboardingTour'
 import { SkipLink } from '@/components/SkipLink'
@@ -327,7 +326,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </header>
         <main id="main" tabIndex={-1} className="flex-1 min-h-0 overflow-auto">{children}</main>
       </div>
-      <CopilotPanel />
       <HelpDrawer />
       <OnboardingTour />
     </div>

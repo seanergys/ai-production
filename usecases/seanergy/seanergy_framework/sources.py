@@ -118,7 +118,8 @@ def _fdata_from_zenodo(
             shutil.rmtree(staging, ignore_errors=True)
     # The filters were applied while building the copy, and the columns they refer to are
     # not necessarily among the ones kept, so they must not be applied a second time.
-    return {"data_path": str(cached), "filters": []}
+    # None, not []: pyarrow rejects an empty filter list as "Malformed filters".
+    return {"data_path": str(cached), "filters": None}
 
 
 def _fdata(

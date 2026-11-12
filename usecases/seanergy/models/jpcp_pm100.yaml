@@ -1,0 +1,59 @@
+# JPCP trained on PM100 only, registered and served under its own name.
+#
+# Same model code and transforms as jpcp.yaml, but a separate MLflow model (`jpcp_pm100`)
+# with its own Staging / Canary / Production aliases. JPCP's aliases hold FData-trained
+# versions (384-dim embedding input); this model's versions take the two PM100 categorical
+# features. Keeping them apart stops an automatic promotion of one from replacing the other.
+name: JPCP_PM100
+model_class: JPCP
+config_class: jpcp_config.JPCPConfiguration
+task_type: regression
+framework: sklearn
+enabled: true
+# No seanerbus_uuid: SeanerBUS routes requests to a model by UUID, and its clients send the
+# FData embedding. Add a fresh UUID here only if PM100 requests are to arrive over the bus.
+
+model:
+  embedding_type: INT
+  hyperparameters:
+    n_jobs: -1
+
+datasets:
+  - name: PM100Dataset
+    backend: zenodo
+    cache_dir: .data_cache/pm100
+    batch_size: 1
+    columns: [num_nodes_req, user_id, node_power_consumption, num_nodes_alloc]
+    input_features: [num_nodes_req_cat, user_id_cat]
+    output_features: [node_power_consumption, num_nodes_alloc]
+    splits:
+      train:
+        filters:
+          - [submit_time, ">=", "2020-05-01T00:00:00+00:00"]
+          - [submit_time, "<=", "2020-09-01T00:00:00+00:00"]
+      validation:
+        filters:
+          - [submit_time, ">=", "2020-09-01T00:00:00+00:00"]
+          - [submit_time, "<=", "2020-10-01T00:00:00+00:00"]
+
+lifecycle:
+  - {name: Staging,    metric: rmse, threshold: 200.0, direction: lower_is_better}
+  - {name: Canary,     metric: rmse, threshold: 100.0, direction: lower_is_better}
+  - {name: Production, metric: rmse, threshold:  50.0, direction: lower_is_better}
+
+serving:
+  model_id: jpcp_pm100
+  aliases: [Production, Canary, Staging]
+
+prefect:
+  schedule: "0 3 * * *"
+  deployment_name: examlops-jpcp-pm100-nightly
+  work_pool: default-agent
+  concurrency_limit: 1
+
+inference:
+  input_schema:
+    num_nodes_req_cat: int
+    user_id_cat: int
+  output_schema:
+    power_per_node_watts: float

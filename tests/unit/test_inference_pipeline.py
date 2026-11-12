@@ -58,6 +58,35 @@ class TestTransformOne:
         assert result["job_id"] is None
 
 
+class TestTransformOneDirectFeatures:
+    """The direct form: a model's own inputs (e.g. PM100) forwarded unchanged."""
+
+    def test_features_forwarded_unchanged_without_embedding(self):
+        req = {
+            "model_name": "JPCP_PM100",
+            "alias": "Staging",
+            "features": {"num_nodes_req_cat": 4, "user_id_cat": 12},
+        }
+        result = FeatureTransformer._transform_one(req)
+        assert result["features"] == {"num_nodes_req_cat": 4, "user_id_cat": 12}
+        assert result["model_name"] == "JPCP_PM100"
+        assert result["alias"] == "Staging"
+        assert result["num_nodes"] is None
+
+    def test_feature_order_is_kept(self):
+        # The model server builds its input row from the values in order.
+        req = {"features": {"b": 2, "a": 1}}
+        assert list(FeatureTransformer._transform_one(req)["features"]) == ["b", "a"]
+
+    def test_empty_features_raises(self):
+        with pytest.raises(ValueError, match="non-empty"):
+            FeatureTransformer._transform_one({"features": {}})
+
+    def test_non_dict_features_raises(self):
+        with pytest.raises(ValueError, match="non-empty"):
+            FeatureTransformer._transform_one({"features": [4, 12]})
+
+
 class TestResolve:
     def test_explicit_model_and_alias_returned_as_is(self):
         payload = {"model_name": "MACK", "alias": "Canary", "features": {}}

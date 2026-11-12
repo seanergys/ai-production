@@ -243,6 +243,39 @@ def test_no_declared_dim_means_no_width_check(ingress):
 def test_a_non_integer_dim_is_ignored_not_crashed_on(ingress, monkeypatch):
     monkeypatch.setenv("EXAMLOPS_INFERENCE_EMBEDDING_DIM", "wide")
     assert ingress._embedding_dim() is None
+
+
+# ── Direct form: a model's own inputs under "features" (e.g. PM100-trained models) ──
+
+
+def test_direct_features_pass_without_embedding_or_num_nodes(ingress):
+    body = {"features": {"num_nodes_req_cat": 4, "user_id_cat": 12}}
+    assert ingress._validate_payload(body) == (True, [])
+
+
+def test_direct_features_accept_number_lists(ingress):
+    assert ingress._validate_payload({"features": {"x": [0.1, 0.2], "y": 3}})[0] is True
+
+
+def test_direct_features_ignore_the_declared_embedding_dim(ingress, monkeypatch):
+    monkeypatch.setenv("EXAMLOPS_INFERENCE_EMBEDDING_DIM", "384")
+    assert ingress._validate_payload({"features": {"a": 1, "b": 2}})[0] is True
+
+
+def test_empty_direct_features_are_a_422(ingress):
+    ok, errors = ingress._validate_payload({"features": {}})
+    assert ok is False
+    assert "non-empty" in errors[0]
+
+
+def test_non_numeric_direct_features_are_a_422_naming_the_field(ingress):
+    ok, errors = ingress._validate_payload({"features": {"user_id": "smoke-user", "n": 4}})
+    assert ok is False
+    assert errors == ["feature 'user_id' must be a number or a list of numbers"]
+
+
+def test_booleans_are_not_accepted_as_numbers(ingress):
+    assert ingress._validate_payload({"features": {"flag": True}})[0] is False
     assert ingress._validate_payload({"embedding": [0.1], "num_nodes": 4})[0] is True
 
 

@@ -25,7 +25,9 @@ import importlib
 import json
 import os
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
 
 import httpx
 import pytest
@@ -76,6 +78,53 @@ class _MockHandler(BaseHTTPRequestHandler):
 
 
 # ---------------------------------------------------------------------------
+# Ray start-up
+# ---------------------------------------------------------------------------
+# Ray gives a new node a fixed 30 s to register its raylet with the GCS
+# (hard-coded in ray/_private/node.py, not configurable). On a loaded CI runner
+# that window can pass before the raylet is up, and ray.init() raises "The
+# current node timed out during startup" before any test runs.
+_RAY_INIT_ATTEMPTS = 3
+_RAY_LOG_FILES = ("raylet.err", "raylet.out", "gcs_server.err", "gcs_server.out")
+
+
+def _ray_startup_logs(tail_lines: int = 40) -> str:
+    """Tails of the raylet/GCS logs of the latest Ray session, for the failure message."""
+    logs_dir = Path("/tmp/ray/session_latest/logs")
+    parts = []
+    for name in _RAY_LOG_FILES:
+        path = logs_dir / name
+        if path.is_file():
+            lines = path.read_text(errors="replace").splitlines()[-tail_lines:]
+            parts.append(f"--- {path} (last {len(lines)} lines) ---\n" + "\n".join(lines))
+    return "\n".join(parts) or f"(no Ray logs found under {logs_dir})"
+
+
+def _start_ray() -> None:
+    """Start a local Ray node, retrying when it times out during start-up.
+
+    The dashboard is not started: these tests never use it, and it is the
+    heaviest of the head-node processes, competing with the raylet for CPU in
+    exactly the window that times out.
+    """
+    for attempt in range(1, _RAY_INIT_ATTEMPTS + 1):
+        try:
+            ray.init(num_cpus=4, include_dashboard=False, ignore_reinit_error=True)
+            return
+        except Exception as exc:  # noqa: BLE001 - Ray raises a bare Exception here
+            if "timed out during startup" not in str(exc):
+                raise
+            logs = _ray_startup_logs()
+            ray.shutdown()
+            if attempt == _RAY_INIT_ATTEMPTS:
+                raise RuntimeError(
+                    f"Ray did not start after {_RAY_INIT_ATTEMPTS} attempts: {exc}\n{logs}"
+                ) from exc
+            print(f"[ray-init] attempt {attempt} timed out; retrying\n{logs}")
+            time.sleep(5)
+
+
+# ---------------------------------------------------------------------------
 # Module-scoped fixture: mock server + Ray Serve cluster
 # ---------------------------------------------------------------------------
 @pytest.fixture(scope="module")
@@ -90,7 +139,7 @@ def pipeline_url():
     os.environ["RAY_SERVE_URL"] = _MOCK_URL
 
     # 3. Start a fresh local Ray cluster (4 CPUs covers the 3 deployments).
-    ray.init(num_cpus=4, ignore_reinit_error=True)
+    _start_ray()
 
     # 4. Start Ray Serve on _SERVE_PORT.
     serve.start(http_options={"host": "127.0.0.1", "port": _SERVE_PORT})
@@ -155,6 +204,32 @@ def test_valid_job_returns_prediction(pipeline_url: str) -> None:
     assert data["prediction"] == 142.7
     assert data["model_version"] == "5"
     assert data["run_id"] == "abc123"
+
+
+def test_direct_features_reach_the_model_server(pipeline_url: str) -> None:
+    """A PM100-trained model's own inputs pass all three stages without an embedding."""
+    with _responses_lock:
+        _responses.clear()
+        _responses["/predict/jpcp_pm100"] = (_MOCK_PREDICTION, 200)
+
+    body = {
+        "model_name": "JPCP_PM100",
+        "alias": "Staging",
+        "features": {"num_nodes_req_cat": 4, "user_id_cat": 12},
+    }
+    r = httpx.post(f"{pipeline_url}/infer", json=body, timeout=30)
+
+    assert r.status_code == 200
+    assert r.json()["prediction"] == 142.7
+
+
+def test_non_numeric_direct_features_return_422(pipeline_url: str) -> None:
+    body = {"model_name": "JPCP_PM100", "features": {"user_id": "smoke-user"}}
+
+    r = httpx.post(f"{pipeline_url}/infer", json=body, timeout=30)
+
+    assert r.status_code == 422
+    assert r.json()["error"] == "validation_error"
 
 
 def test_missing_embedding_returns_422(pipeline_url: str) -> None:

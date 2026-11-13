@@ -136,7 +136,8 @@ def test_zenodo_fdata_split_is_fetched_once_and_reused(tmp_path):
     assert len(built) == 1
     assert Path(first["data_path"]).exists()
     # Already applied while fetching; the filter columns are not guaranteed to be kept.
-    assert first["filters"] == []
+    # None, not []: pyarrow rejects an empty filter list ("Malformed filters").
+    assert first["filters"] is None
     # The copy is the published data: transforms are the caller's to apply, exactly once.
     assert "transform" not in built[0]
     assert not list(tmp_path.glob("_staging_*"))

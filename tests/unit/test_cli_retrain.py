@@ -104,3 +104,20 @@ def test_predict_sends_inference_pipeline_payload_shape():
         "num_nodes": 4,
         "user_id": "smoke",
     }
+
+
+def test_predict_without_embedding_sends_model_inputs_as_features():
+    """A PM100-trained model's own inputs go under "features", forwarded unchanged."""
+    fake = {"prediction": 612.8, "model_name": "jpcp_pm100", "model_version": "1"}
+    features = '{"num_nodes_req_cat": 4, "user_id_cat": 12}'
+    with patch("examlops.cli.commands.predict._client.post", return_value=fake) as mock_post:
+        result = runner.invoke(
+            app, ["predict", "JPCP_PM100", "--features", features, "--alias", "Staging"]
+        )
+    assert result.exit_code == 0
+    body = mock_post.call_args[0][1]
+    assert body == {
+        "model_name": "JPCP_PM100",
+        "alias": "Staging",
+        "features": {"num_nodes_req_cat": 4, "user_id_cat": 12},
+    }

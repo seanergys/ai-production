@@ -149,6 +149,23 @@ class FeatureTransformer:
 
     @staticmethod
     def _transform_one(req: dict[str, Any]) -> dict[str, Any]:
+        # Direct form: the caller sends the model's own inputs under "features" (e.g. a
+        # PM100-trained model's categorical codes). They are forwarded unchanged; the
+        # embedding/num_nodes requirements below belong to the FData form only.
+        direct = req.get("features")
+        if direct is not None:
+            if not isinstance(direct, dict) or not direct:
+                raise ValueError("features must be a non-empty object of model inputs")
+            num_nodes = req.get("num_nodes")
+            return {
+                "model_name": req.get("model_name"),
+                "alias": req.get("alias"),
+                "job_id": req.get("job_id"),
+                "num_nodes": int(num_nodes) if num_nodes is not None else None,
+                "user_id": str(req.get("user_id", "")),
+                "features": dict(direct),
+            }
+
         embedding = req.get("embedding")
         if embedding is None:
             raise ValueError("embedding is required")
@@ -220,14 +237,44 @@ def _embedding_dim() -> int | None:
         return None
 
 
+def _is_number(value: Any) -> bool:
+    return isinstance(value, int | float) and not isinstance(value, bool)
+
+
+def _validate_direct_features(features: Any) -> tuple[bool, list[str]]:
+    """Validate the direct form: ``features`` maps input names to numbers (or number lists).
+
+    The model server builds its input row from these values in order and casts it to float,
+    so anything non-numeric is refused here as a 422 rather than failing there as a 500.
+    """
+    if not isinstance(features, dict) or not features:
+        return False, ["features must be a non-empty object of model inputs"]
+    errors = [
+        f"feature '{name}' must be a number or a list of numbers"
+        for name, value in features.items()
+        if not (
+            _is_number(value)
+            or (isinstance(value, list) and value and all(_is_number(v) for v in value))
+        )
+    ]
+    return (not errors, errors)
+
+
 def _validate_payload(body: dict[str, Any]) -> tuple[bool, list[str]]:
     """Validate one inference request through the A5 contract layer (R8/R9).
+
+    Two request forms are accepted. A body carrying ``features`` is the direct form: the
+    model's own inputs, forwarded unchanged (models trained on datasets other than FData,
+    e.g. PM100). Any other body is the FData form and must carry ``embedding`` and
+    ``num_nodes``.
 
     Degrades to the previous presence check if the contract package is not importable in this
     process — a serving replica that cannot import `pipelines` must still serve, and refusing
     every request because a *validator* is missing would be a far worse failure than the one
     this gate prevents.
     """
+    if "features" in body:
+        return _validate_direct_features(body["features"])
     try:
         from pipelines.contracts import validate_request
     except Exception:  # noqa: BLE001

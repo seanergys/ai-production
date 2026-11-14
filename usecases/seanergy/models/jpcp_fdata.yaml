@@ -1,0 +1,57 @@
+# JPCP trained on F-DATA (Fugaku) only, registered and served under its own name.
+#
+# Same model code and transforms as jpcp.yaml, but a separate MLflow model (`jpcp_fdata`),
+# so its versions and aliases never mix with PM100-trained ones.
+name: JPCP_FDATA
+model_class: JPCP
+config_class: jpcp_config.JPCPConfiguration
+task_type: regression
+framework: sklearn
+enabled: true
+# No seanerbus_uuid yet: the bus UUID 30b0f24c-... still routes to JPCP. Move it here
+# when SeanerBUS traffic is to be served by this model.
+
+model:
+  embedding_type: INT
+  hyperparameters:
+    n_jobs: -1
+
+datasets:
+  - name: FDataDataset
+    backend: zenodo
+    cache_dir: .data_cache/fdata
+    batch_size: 1
+    input_features: [embedding]
+    output_features: [avgpcon, nnuma]
+    splits:
+      train:
+        files: ["23_12", "24_01"]
+        filters:
+          - [adt, ">=", "2023-12-01"]
+          - [adt, "<=", "2024-01-31"]
+      validation:
+        files: ["24_02"]
+        filters:
+          - [adt, ">=", "2024-02-01"]
+          - [adt, "<=", "2024-02-28"]
+
+lifecycle:
+  - {name: Staging,    metric: rmse, threshold: 200.0, direction: lower_is_better}
+  - {name: Canary,     metric: rmse, threshold: 100.0, direction: lower_is_better}
+  - {name: Production, metric: rmse, threshold:  50.0, direction: lower_is_better}
+
+serving:
+  model_id: jpcp_fdata
+  aliases: [Production, Canary, Staging]
+
+prefect:
+  schedule: "0 4 * * *"
+  deployment_name: examlops-jpcp-fdata-nightly
+  work_pool: default-agent
+  concurrency_limit: 1
+
+inference:
+  input_schema:
+    embedding: list[float]
+  output_schema:
+    power_per_node_watts: float

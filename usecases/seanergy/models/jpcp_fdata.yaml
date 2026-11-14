@@ -25,15 +25,16 @@ datasets:
     output_features: [avgpcon, nnuma]
     splits:
       train:
-        files: ["23_12", "24_01"]
+        files: ["23_12"]
         filters:
           - [adt, ">=", "2023-12-01"]
-          - [adt, "<=", "2024-01-31"]
+          - [adt, "<=", "2023-12-07"]
       validation:
-        files: ["24_02"]
+        files: ["24_01"]
         filters:
-          - [adt, ">=", "2024-02-01"]
-          - [adt, "<=", "2024-02-28"]
+          - [adt, ">=", "2024-01-01"]
+          - [adt, "<=", "2024-01-03"]
+
 
 lifecycle:
   - {name: Staging,    metric: rmse, threshold: 200.0, direction: lower_is_better}

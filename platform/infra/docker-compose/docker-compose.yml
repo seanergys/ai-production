@@ -177,7 +177,7 @@ services:
       - "18265:8265"   # Ray dashboard
       - "18080:8080"   # Prometheus metrics (Ray)
     shm_size: '2gb'
-    mem_limit: ${RAY_MEM_LIMIT:-6g}
+    mem_limit: ${RAY_MEM_LIMIT:-12g}
     cpus: ${RAY_CPUS:-2.0}
     depends_on:
       mlflow:

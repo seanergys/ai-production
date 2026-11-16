@@ -157,6 +157,11 @@ services:
       RAY_GRAFANA_HOST: http://grafana:3000
       RAY_GRAFANA_IFRAME_HOST: http://${PUBLIC_HOST:-localhost}:13000
       OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
+      # Ray >= 2.4x records its metrics through the OpenTelemetry SDK by default, and
+      # OTEL_SDK_DISABLED above turns that SDK into a no-op: :8080/metrics then serves no
+      # ray_* series at all and Prometheus scrapes an "up" but empty target. Ray's own
+      # (non-OTel) metrics path is unaffected by that flag, so use it here.
+      RAY_enable_open_telemetry: "0"
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://tempo:4317}
       OTEL_SERVICE_NAME: ray-serving
       # Some registered models are custom estimator classes defined in the upstream model

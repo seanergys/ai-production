@@ -223,6 +223,50 @@ def test_the_pin_is_stored_inside_the_release(node):
     assert "EXAMLOPS_IMAGE_TAG=cafe1234" in pin
 
 
+# ── secrets override ─────────────────────────────────────────────────────────
+
+
+def _secrets(node) -> Path:
+    return node.legacy.parent / "examlops-secrets.env"
+
+
+def test_without_a_secrets_file_compose_is_called_as_before(node):
+    node.deploy(_sha(1))
+    assert not any("--env-file" in c for c in node.compose_calls())
+
+
+def test_the_secrets_file_is_read_after_the_release_env(node):
+    (node.legacy / "platform" / "infra" / "docker-compose" / ".env").write_text("A=1\n")
+    _secrets(node).write_text("DASHBOARD_ADMIN_PASSWORD=real\n")
+    result = node.deploy(_sha(1))
+
+    assert f"secrets: overrides from {_secrets(node)}" in result.stdout
+    for call in node.compose_calls():
+        # Later --env-file wins, so the order is the whole point.
+        release_env = call.index("--env-file platform/infra/docker-compose/.env")
+        assert release_env < call.index(f"--env-file {_secrets(node)}"), call
+
+
+def test_the_secrets_file_also_applies_on_rollback(node):
+    _secrets(node).write_text("CONTROL_PLANE_TOKEN=real\n")
+    node.deploy(_sha(1))
+    node.deploy(_sha(2))
+    node.log.unlink()
+
+    node.run("activate", str(node.legacy), str(node.releases / _sha(1)))
+    assert all(f"--env-file {_secrets(node)}" in c for c in node.compose_calls())
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root can read a mode-000 file")
+def test_an_unreadable_secrets_file_is_reported_not_fatal(node):
+    _secrets(node).write_text("X=1\n")
+    _secrets(node).chmod(0)
+    result = node.deploy(_sha(1))
+
+    assert "cannot read it" in result.stdout
+    assert not any("--env-file" in c for c in node.compose_calls())
+
+
 # ── input validation ─────────────────────────────────────────────────────────
 
 

@@ -10,6 +10,7 @@ ACTION="${1:?usage: $0 <deploy|activate|list> <legacy-path> [<sha-or-release>] [
 LEGACY_PATH="${2:?legacy deploy path is required}"
 RELEASE_ROOT="${LEGACY_PATH}-releases"
 STATE_ROOT="${LEGACY_PATH}-state"
+SECRETS_FILE="${LEGACY_PATH}-secrets.env"
 CURRENT_LINK="${LEGACY_PATH}-current"
 
 copy_once() {
@@ -175,7 +176,23 @@ activate_release() {
         && echo "pipeline ACL set" \
         || echo "warn: pipeline ACL skipped — non-fatal"
 
-    COMPOSE=(docker compose
+    COMPOSE=(docker compose)
+    # Secrets kept beside the state rather than in it: the state files belong to the
+    # account that first seeded them, so the team that runs the platform could not set
+    # real values there. Compose reads this file after the release's .env, and later
+    # files win, so it only needs the keys it overrides. --env-file parses KEY=value
+    # lines and executes nothing, which is why this file is never `source`d here.
+    if [ -r "$SECRETS_FILE" ]; then
+        # Naming any --env-file turns off compose's automatic .env, so name that one first.
+        if [ -f platform/infra/docker-compose/.env ]; then
+            COMPOSE+=(--env-file platform/infra/docker-compose/.env)
+        fi
+        COMPOSE+=(--env-file "$SECRETS_FILE")
+        echo "secrets: overrides from $SECRETS_FILE"
+    elif [ -e "$SECRETS_FILE" ]; then
+        echo "warn: $SECRETS_FILE exists but $(id -un) cannot read it — overrides skipped"
+    fi
+    COMPOSE+=(
         -f platform/infra/docker-compose/docker-compose.yml
         -f platform/infra/docker-compose/docker-compose.lxp.yml)
 

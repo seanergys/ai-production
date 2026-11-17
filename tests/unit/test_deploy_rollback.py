@@ -62,7 +62,12 @@ def test_deploy_does_not_mutate_the_legacy_checkout():
     script = _script("deploy:lxp")
     assert "git pull" not in script
     assert "git reset" not in script
-    assert "git archive" in script
+    # The immutable archive (repo + pinned modelzoo) is built by this script, via git archive.
+    assert "platform/ci/build_release_archive.sh" in script
+    builder = (
+        Path(__file__).resolve().parents[2] / "platform/ci/build_release_archive.sh"
+    ).read_text()
+    assert 'git -C "$ROOT" archive' in builder
     assert "lxp_release.sh" in script
 
 

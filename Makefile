@@ -20,7 +20,7 @@ MODELZOO_DIR    := modelzoo
 # platform is tested against — bump it deliberately, after `make test-fast` passes on the new
 # one (tests/unit/test_upstream_modelzoo_compat.py is the check that matters).
 MODELZOO_REPO   ?= https://gitlab.seanergys.fz-juelich.de/software/modelzoo.git
-MODELZOO_REF    ?= 09b4036506f687495a0f1fd70748f14c8a2a1cff
+MODELZOO_REF    ?= ccf98b0ad201ff040502d4559d6a238a34e1de52
 # deploy-node layout: $(DEPLOY_PATH)-seanerbus/seanerbus
 # laptop layout:      ../../seanerbus  (two levels up from repo root)
 SEANERBUS_DIR   ?= $(or $(wildcard $(ROOT_DIR)/../examlops-seanerbus/seanerbus),$(ROOT_DIR)/../../seanerbus)

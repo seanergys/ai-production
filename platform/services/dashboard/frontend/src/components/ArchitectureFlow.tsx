@@ -96,51 +96,56 @@ const nodeTypes = { status: StatusNode, groupLabel: GroupLabel }
 // ── Layout ──────────────────────────────────────────────────────────────────
 // Node ids match the keys of the /health services map so live status colours them.
 
+// A 5-column grid (columns 285 px apart, rows -90 / 40 / 160 / 300 / 440). Every edge
+// either runs straight between neighbours or turns once, and no two edges share a segment:
+// the top row is the control → training → registry path, the third row the serving →
+// monitoring path, and the two that cross rows (control → serving, MLflow → serving) enter
+// Ray Serve from different sides than the SeanerBUS request, which comes in from below.
+// The Slurm Adapter sits above Prefect so the MLflow → Ray Serve edge has a clear column.
 const NODE_DEFS: { id: string; label: string; x: number; y: number }[] = [
-  { id: 'seanerbus_sim', label: 'SeanerBUS',         x: 0,    y: 60  },
-  { id: 'seanerbus',     label: 'SeanerBUS Bridge', x: 0,    y: 200 },
-  { id: 'control_plane', label: 'Control Plane',    x: 285,  y: 110 },
-  { id: 'dashboard',     label: 'Dashboard',        x: 285,  y: 440 },
-  { id: 'prefect',       label: 'Prefect',          x: 570,  y: 20  },
-  { id: 'slurm',         label: 'Slurm Adapter',    x: 570,  y: 140 },
+  { id: 'dashboard',     label: 'Dashboard',        x: 0,    y: 40  },
+  { id: 'seanerbus_sim', label: 'SeanerBUS',         x: 0,    y: 300 },
+  { id: 'seanerbus',     label: 'SeanerBUS Bridge', x: 0,    y: 440 },
+  { id: 'control_plane', label: 'Control Plane',    x: 285,  y: 40  },
+  { id: 'prefect',       label: 'Prefect',          x: 570,  y: 40  },
+  { id: 'slurm',         label: 'Slurm Adapter',    x: 570,  y: -90 },
   { id: 'ray_serve',     label: 'Ray Serve',        x: 570,  y: 300 },
-  { id: 'mlflow',        label: 'MLflow',           x: 855,  y: 80  },
+  { id: 'mlflow',        label: 'MLflow',           x: 855,  y: 40  },
   { id: 'prometheus',    label: 'Prometheus',       x: 855,  y: 300 },
-  { id: 'loki',          label: 'Loki',             x: 855,  y: 420 },
-  { id: 'postgres',      label: 'PostgreSQL',       x: 1140, y: 20  },
-  { id: 'minio',         label: 'MinIO',            x: 1140, y: 150 },
+  { id: 'loki',          label: 'Loki',             x: 855,  y: 440 },
+  { id: 'postgres',      label: 'PostgreSQL',       x: 1140, y: 40  },
+  { id: 'minio',         label: 'MinIO',            x: 1140, y: 160 },
   { id: 'grafana',       label: 'Grafana',          x: 1140, y: 300 },
 ]
 
 const GROUP_DEFS: { id: string; label: string; x: number; y: number }[] = [
-  { id: 'g-clients',    label: 'Clients',            x: 4,    y: 20  },
-  { id: 'g-control',    label: 'Control',            x: 289,  y: 72  },
-  { id: 'g-training',   label: 'Training',           x: 574,  y: -18 },
-  { id: 'g-storage',    label: 'Registry & Storage', x: 859,  y: 42  },
+  { id: 'g-access',     label: 'Access',             x: 4,    y: 2   },
+  { id: 'g-control',    label: 'Control',            x: 289,  y: 2   },
+  { id: 'g-training',   label: 'Training',           x: 574,  y: -128 },
+  { id: 'g-storage',    label: 'Registry & Storage', x: 859,  y: 2   },
+  { id: 'g-clients',    label: 'Clients',            x: 4,    y: 262 },
   { id: 'g-serving',    label: 'Serving',            x: 574,  y: 262 },
   { id: 'g-monitoring', label: 'Monitoring',         x: 859,  y: 262 },
-  { id: 'g-access',     label: 'Access',             x: 4,    y: 402 },
 ]
 
 // [source, target, label, sourceHandle, targetHandle, dashed]
 const EDGE_DEFS: [string, string, string, string, string, boolean][] = [
   // Primary data / control flow
-  ['seanerbus_sim', 'seanerbus',     'Cap\'n\'Proto TCP', 's-right',  't-left',   false],
-  // ['seanerbus',     'control_plane', 'drift → retrain', 's-right',  't-left',   false],
+  ['seanerbus_sim', 'seanerbus',     'Cap\'n\'Proto TCP', 's-bottom', 't-top',    false],
   ['control_plane', 'prefect',       'schedule run',    's-right',  't-left',   false],
-  ['control_plane', 'ray_serve',     ' infer-pipeline',    's-right',  't-left',   false],
-  ['prefect',       'slurm',         'submit job',      's-bottom', 't-top',    false],
+  ['control_plane', 'ray_serve',     'infer-pipeline',  's-bottom', 't-left',   false],
+  ['prefect',       'slurm',         'submit job',      's-top',    't-bottom', false],
   ['prefect',       'mlflow',        'log + register',  's-right',  't-left',   false],
   ['mlflow',        'postgres',      'metadata',        's-right',  't-left',   false],
   ['mlflow',        'minio',         'artifacts',       's-right',  't-left',   false],
   ['mlflow',        'ray_serve',     'load model',      's-bottom', 't-top',    false],
-  ['seanerbus',     'ray_serve',     'infer-request',  's-right',  't-left',   false],
-  // Observability / proxy
-  // ['ray_serve',     'prometheus',    'metrics',         's-right',  't-left',   true],
-  ['control_plane', 'prometheus',    'metrics',         's-bottom', 't-top',    true],
+  ['seanerbus',     'ray_serve',     'infer-request',   's-right',  't-bottom', false],
+  // Observability / proxy. Prometheus scrapes every service (control plane, bridge, Loki,
+  // Tempo too); only the serving path is drawn so the arrows stay readable.
+  ['dashboard',     'control_plane', 'proxy / observe', 's-right',  't-left',   true],
+  ['ray_serve',     'prometheus',    'metrics',         's-right',  't-left',   true],
   ['prometheus',    'grafana',       'dashboards',      's-right',  't-left',   true],
   ['loki',          'grafana',       'logs',            's-right',  't-bottom', true],
-  ['dashboard',     'control_plane', 'proxy / observe', 's-top',    't-bottom', true],
 ]
 
 function buildEdges(): Edge[] {

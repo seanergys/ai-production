@@ -1,0 +1,60 @@
+# Job duration prediction (BULL) on F-DATA: an ensemble of small neural networks that
+# predicts how long a job will run, in minutes, from its script embedding and request.
+name: DurationPredictionBull
+model_class: DurationPredictionBull
+config_class: duration_prediction_bull_config.DurationPredictionBullConfiguration
+task_type: regression
+# sklearn: the logged artefact is upstream's _DurationEstimator (a predict(X) wrapper
+# around the torch ensemble and its preprocessor), not a bare nn.Module.
+framework: sklearn
+enabled: true
+# No seanerbus_uuid: add one when duration requests are to arrive over the bus.
+
+model:
+  hyperparameters: {}
+
+datasets:
+  - name: FDataDataset
+    backend: zenodo
+    cache_dir: .data_cache/fdata
+    batch_size: 64
+    # elpl = requested walltime (s), cnumr/nnumr = requested cores/nodes,
+    # duration = actual runtime (s), the training target.
+    input_features: [embedding, cnumr, nnumr, elpl]
+    output_features: [duration]
+    splits:
+      train:
+        files: ["23_12"]
+        filters:
+          - [adt, ">=", "2023-12-01"]
+          - [adt, "<=", "2023-12-07"]
+      validation:
+        files: ["24_01"]
+        filters:
+          - [adt, ">=", "2024-01-01"]
+          - [adt, "<=", "2024-01-03"]
+
+# RMSE in minutes.
+lifecycle:
+  - {name: Staging,    metric: rmse, threshold: 200.0, direction: lower_is_better}
+  - {name: Canary,     metric: rmse, threshold: 100.0, direction: lower_is_better}
+  - {name: Production, metric: rmse, threshold:  50.0, direction: lower_is_better}
+
+serving:
+  model_id: duration_prediction_bull
+  aliases: [Production, Canary, Staging]
+
+prefect:
+  schedule: "0 5 * * *"
+  deployment_name: examlops-duration-prediction-bull-nightly
+  work_pool: default-agent
+  concurrency_limit: 1
+
+inference:
+  input_schema:
+    embedding: list[float]
+    cnumr: int
+    nnumr: int
+    elpl: int
+  output_schema:
+    duration_minutes: float

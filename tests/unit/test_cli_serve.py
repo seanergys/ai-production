@@ -58,3 +58,23 @@ def test_serve_benchmark_runs_dummy_client():
     assert "platform/clients/dummy_client.py" in cmd
     assert "--benchmark" in cmd
     assert "25" in cmd
+
+
+def test_serve_models_shows_the_fields_ray_serve_actually_returns():
+    """Ray Serve's /models answers with model_name / model_version, not name / version."""
+    ray_answer = [
+        {
+            "model_name": "jpcp_pm100",
+            "alias": "Staging",
+            "model_version": "4",
+            "run_id": "r1",
+            "status": "ok",
+            "project": None,
+        }
+    ]
+    with patch("examlops.cli.commands.serve._client.get", return_value=ray_answer):
+        result = runner.invoke(app, ["serve", "models"])
+    assert result.exit_code == 0, result.output
+    assert "jpcp_pm100" in result.output
+    assert "Staging" in result.output
+    assert "4" in result.output

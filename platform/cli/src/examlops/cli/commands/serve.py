@@ -254,12 +254,14 @@ def models_cmd(
         rows = []
         for item in items:
             if isinstance(item, dict):
+                # Ray Serve's /models answers with model_name / model_version; the bare
+                # keys are kept as a fallback for older servers.
                 rows.append(
                     [
-                        item.get("name", "—"),
-                        item.get("alias", "—"),
-                        item.get("version", "—"),
-                        item.get("status", "—"),
+                        item.get("model_name") or item.get("name") or "—",
+                        item.get("alias") or "—",
+                        str(item.get("model_version") or item.get("version") or "—"),
+                        item.get("status") or "—",
                     ]
                 )
             else:

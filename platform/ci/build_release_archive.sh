@@ -26,7 +26,17 @@ fi
 
 SOURCE="${MODELZOO_SOURCE:-}"
 if [ -z "$SOURCE" ]; then
-    SOURCE="https://oauth2:${GITLAB_TOKEN:?GITLAB_TOKEN is required to fetch modelzoo}@${CI_SERVER_HOST:?CI_SERVER_HOST is required}/software/modelzoo.git"
+    host="${CI_SERVER_HOST:?CI_SERVER_HOST is required}"
+    if [ -n "${GITLAB_TOKEN:-}" ]; then
+        SOURCE="https://oauth2:${GITLAB_TOKEN}@${host}/software/modelzoo.git"
+    elif [ -n "${CI_JOB_TOKEN:-}" ]; then
+        # The job's own token: no personal credential needed, but software/modelzoo must
+        # allow it (modelzoo → Settings → CI/CD → Job token permissions → add this project).
+        SOURCE="https://gitlab-ci-token:${CI_JOB_TOKEN}@${host}/software/modelzoo.git"
+    else
+        echo "error: neither GITLAB_TOKEN nor CI_JOB_TOKEN is set — cannot fetch modelzoo" >&2
+        exit 1
+    fi
 fi
 
 work="$(mktemp -d)"

@@ -121,3 +121,17 @@ def test_the_deploy_job_builds_its_archive_with_the_script():
     ci = (ROOT / ".gitlab-ci.yml").read_text()
     assert "platform/ci/build_release_archive.sh" in ci
     assert 'git archive --format=tar.gz -o "$ARCHIVE"' not in ci
+
+
+def test_without_any_token_the_error_says_what_is_missing(repos, tmp_path):
+    zoo, old, _new, platform = repos
+    app, sha = platform(old)
+    result = subprocess.run(
+        ["bash", str(_SCRIPT), str(tmp_path / "r.tar.gz"), sha],
+        cwd=app,
+        env={"PATH": "/usr/bin:/bin", "HOME": str(app), "CI_SERVER_HOST": "gitlab.invalid"},
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "neither GITLAB_TOKEN nor CI_JOB_TOKEN" in result.stderr

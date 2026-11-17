@@ -126,16 +126,17 @@ const GROUP_DEFS: { id: string; label: string; x: number; y: number }[] = [
 const EDGE_DEFS: [string, string, string, string, string, boolean][] = [
   // Primary data / control flow
   ['seanerbus_sim', 'seanerbus',     'Cap\'n\'Proto TCP', 's-right',  't-left',   false],
-  ['seanerbus',     'control_plane', 'drift → retrain', 's-right',  't-left',   false],
+  // ['seanerbus',     'control_plane', 'drift → retrain', 's-right',  't-left',   false],
   ['control_plane', 'prefect',       'schedule run',    's-right',  't-left',   false],
+  ['control_plane', 'ray_serve',     ' infer-pipeline',    's-right',  't-left',   false],
   ['prefect',       'slurm',         'submit job',      's-bottom', 't-top',    false],
-  ['slurm',         'mlflow',        'log + register',  's-right',  't-left',   false],
+  ['prefect',       'mlflow',        'log + register',  's-right',  't-left',   false],
   ['mlflow',        'postgres',      'metadata',        's-right',  't-left',   false],
   ['mlflow',        'minio',         'artifacts',       's-right',  't-left',   false],
   ['mlflow',        'ray_serve',     'load model',      's-bottom', 't-top',    false],
-  ['seanerbus',     'ray_serve',     'infer-pipeline',  's-right',  't-left',   false],
+  ['seanerbus',     'ray_serve',     'infer-request',  's-right',  't-left',   false],
   // Observability / proxy
-  ['ray_serve',     'prometheus',    'metrics',         's-right',  't-left',   true],
+  // ['ray_serve',     'prometheus',    'metrics',         's-right',  't-left',   true],
   ['control_plane', 'prometheus',    'metrics',         's-bottom', 't-top',    true],
   ['prometheus',    'grafana',       'dashboards',      's-right',  't-left',   true],
   ['loki',          'grafana',       'logs',            's-right',  't-bottom', true],

@@ -1191,7 +1191,9 @@ deploy:lxp:
       ARCHIVE="examlops-${CI_COMMIT_SHA}.tar.gz"
       REMOTE_ARCHIVE="/tmp/$ARCHIVE"
       REMOTE_SCRIPT="/tmp/examlops-lxp-release-${CI_COMMIT_SHA}.sh"
-      git archive --format=tar.gz -o "$ARCHIVE" "$CI_COMMIT_SHA"
+      # The release carries modelzoo at the Makefile's MODELZOO_REF, so serving runs the
+      # same model code that training and the test suite run (see the script's header).
+      bash platform/ci/build_release_archive.sh "$ARCHIVE" "$CI_COMMIT_SHA"
       scp -i ~/.ssh/id_ed25519 -o BatchMode=yes "$ARCHIVE" \
         "$LXP_USER@$LXP_HOST:$REMOTE_ARCHIVE"
       scp -i ~/.ssh/id_ed25519 -o BatchMode=yes platform/ci/lxp_release.sh \
